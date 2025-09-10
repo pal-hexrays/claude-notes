@@ -194,8 +194,8 @@ def order_messages(messages: list, message_order: str) -> list:
 @click.option("--raw", is_flag=True, help="Show raw JSON data instead of formatted view")
 @click.option("--no-pager", is_flag=True, help="Disable pager and show all content at once")
 @click.option("--summary", is_flag=True, help="Show only user messages and Claude replies, filtering out tool calls")
-@click.option("--format", type=click.Choice(["terminal", "html", "animated", "template"]), default="terminal", help="Output format")
-@click.option("--output", type=click.Path(), help="Output file (HTML/GIF/MP4/cast format)")
+@click.option("--format", type=click.Choice(["terminal", "animated", "template"]), default="terminal", help="Output format")
+@click.option("--output", type=click.Path(), help="Output file (GIF/MP4/cast format for animated, HTML for template)")
 @click.option(
     "--session-order",
     type=click.Choice(["asc", "desc"]),
@@ -349,89 +349,6 @@ def show(
         for conv in conversations:
             console.print(f"\n[bold cyan]Conversation: {conv['info'].get('conversation_id', 'Unknown')}[/bold cyan]")
             console.print(json.dumps(conv["messages"], indent=2))
-    elif format == "html":
-        # Generate HTML output
-        from claude_notes.formatters.factory import FormatterFactory
-        from claude_notes.formatters.html import get_extra_html_css, get_html_css
-
-        formatter = FormatterFactory.create_formatter("html")
-
-        # Collect all formatted content
-        html_parts = []
-        html_parts.append("<!DOCTYPE html>")
-        html_parts.append('<html lang="en">')
-        html_parts.append("<head>")
-        html_parts.append('<meta charset="UTF-8">')
-        html_parts.append('<meta name="viewport" content="width=device-width, initial-scale=1.0">')
-        html_parts.append("<title>Claude Conversations</title>")
-        html_parts.append(get_html_css())
-        html_parts.append(get_extra_html_css(style))
-        html_parts.append("</head>")
-        html_parts.append('<body id="top">')
-        # Theme toggle button and script
-        html_parts.append('<button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>')
-        html_parts.append('<div class="container">')
-
-        # Add conversation navigation if multiple conversations
-        if len(conversations) > 1:
-            html_parts.append('<div class="conversation-nav">')
-            html_parts.append("<h2>Conversations</h2>")
-            html_parts.append('<ul class="conversation-toc">')
-            for i, conv in enumerate(conversations):
-                conv_id = conv["info"].get("conversation_id", f"conv-{i+1}")
-                title = conv["info"].get("title", f"Conversation {i+1}")
-                start_time = conv["info"].get("start_time", "Unknown time")
-                html_parts.append(f'<li><a href="#conv-{conv_id}">📝 {title} ({start_time})</a></li>')
-            html_parts.append("</ul>")
-            html_parts.append("</div>")
-
-        for i, conv in enumerate(conversations):
-            # Order the messages based on user preference
-            ordered_messages = order_messages(conv["messages"], message_order)
-            
-            # Apply summary filtering if requested
-            if summary:
-                ordered_messages = formatter._filter_for_summary(ordered_messages)
-            
-            html_content = formatter.format_conversation(ordered_messages, conv["info"])
-            html_parts.append(html_content)
-            if i < len(conversations) - 1:
-                html_parts.append('<hr style="margin: 50px 0; border: none; border-top: 1px solid var(--border);">')
-
-        # Add back to top link
-        html_parts.append('<div class="back-to-top">')
-        html_parts.append('<a href="#top">⬆️ Back to Top</a>')
-        html_parts.append("</div>")
-
-        html_parts.append("</div>")
-        # Theme toggle JavaScript
-        html_parts.append("""<script>
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-}
-// Load saved theme or default to light
-const savedTheme = localStorage.getItem('theme') || 'light';
-if (savedTheme === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-}
-</script>""")
-        html_parts.append("</body>")
-        html_parts.append("</html>")
-
-        html_output = "\n".join(html_parts)
-
-        if output:
-            # Write to file
-            output_path = Path(output)
-            output_path.write_text(html_output, encoding="utf-8")
-            console.print(f"[green]HTML output written to: {output_path}[/green]")
-        else:
-            # Print to stdout
-            print(html_output)
     elif format == "animated":
         # Generate animated GIF
         from claude_notes.formatters.factory import FormatterFactory

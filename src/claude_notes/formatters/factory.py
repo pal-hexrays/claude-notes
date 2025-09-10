@@ -3,7 +3,6 @@
 from rich.console import Console
 
 from claude_notes.formatters.base import BaseFormatter, OutputFormat
-from claude_notes.formatters.html import HTMLFormatter
 from claude_notes.formatters.terminal import TerminalFormatter
 from claude_notes.formatters.template import TemplateFormatter
 
@@ -28,8 +27,6 @@ class FormatterFactory:
         """
         if format_type == OutputFormat.TERMINAL:
             return TerminalFormatter(console)
-        elif format_type == OutputFormat.HTML:
-            return HTMLFormatter()
         elif format_type == OutputFormat.ANIMATED:
             from claude_notes.formatters.animated import AnimatedFormatter
 
@@ -43,4 +40,4 @@ class FormatterFactory:
     @staticmethod
     def get_supported_formats() -> list[str]:
         """Get list of supported output formats."""
-        return [OutputFormat.TERMINAL, OutputFormat.HTML, OutputFormat.ANIMATED, OutputFormat.TEMPLATE]
+        return [OutputFormat.TERMINAL, OutputFormat.ANIMATED, OutputFormat.TEMPLATE]

@@ -450,11 +450,11 @@
             </div>
             
             <div class="conversations-list" id="conversationsList">
-                {% for conversation in conversations | reverse %}
-                <div class="conversation-item" data-conv-id="{{ conversations|length - loop.index0 }}" 
-                     onclick="selectConversation({{ conversations|length - loop.index0 }})">
+                {% for conversation in conversations %}
+                <div class="conversation-item" data-conv-id="{{ loop.index }}" 
+                     onclick="selectConversation({{ loop.index }})">
                     <div class="conversation-avatar">
-                        C{{ conversations|length - loop.index0 }}
+                        C{{ loop.index }}
                     </div>
                     <div class="conversation-info">
                         <div class="conversation-title">
