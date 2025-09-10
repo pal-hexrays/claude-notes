@@ -73,6 +73,28 @@ uvx claude-notes show --no-pager
 uvx claude-notes show --raw
 ```
 
+#### Ordering Options
+
+Control the order of sessions and messages in the output:
+
+```bash
+# Order sessions and messages (asc=oldest first, desc=newest first)
+uvx claude-notes show --session-order desc --message-order asc
+
+# Show newest sessions first (default), oldest messages first within each session
+uvx claude-notes show --session-order desc --message-order asc
+
+# Show oldest sessions first, newest messages first within each session  
+uvx claude-notes show --session-order asc --message-order desc
+
+# Show everything in chronological order (oldest sessions and messages first)
+uvx claude-notes show --session-order asc --message-order asc
+```
+
+**Options:**
+- `--session-order [asc|desc]`: Order sessions by timestamp (default: desc)
+- `--message-order [asc|desc]`: Order messages within sessions (default: desc)
+
 ## HTML Features
 
 The HTML output includes:

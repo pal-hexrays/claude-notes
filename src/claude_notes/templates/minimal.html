@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ metadata.title }}</title>
+    
+    <style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+        color: #333;
+    }
+    
+    .conversation-header {
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .message {
+        margin-bottom: 20px;
+        padding: 15px;
+        border-radius: 8px;
+    }
+    
+    .message.user {
+        background-color: #f0f8ff;
+        border-left: 4px solid #007bff;
+    }
+    
+    .message.assistant {
+        background-color: #f8f9fa;
+        border-left: 4px solid #28a745;
+    }
+    
+    .message-header {
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #495057;
+    }
+    
+    .message-content {
+        margin: 0;
+    }
+    
+    .tool-use {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin: 10px 0;
+        font-family: monospace;
+        font-size: 0.9em;
+    }
+    
+    code {
+        background-color: #f8f9fa;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: 'Monaco', 'Menlo', monospace;
+    }
+    
+    .timestamp {
+        font-size: 0.8em;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{ metadata.title }}</h1>
+        
+        {% if metadata.has_multiple_conversations %}
+        <!-- Multiple conversations -->
+        {% for conversation in conversations %}
+        <div class="conversation">
+            <div class="conversation-header">
+                <h2>Conversation {{ loop.index }}</h2>
+                {% if conversation.info.start_time %}
+                <div class="timestamp">{{ conversation.info.start_time | humanize_date }}</div>
+                {% endif %}
+            </div>
+
+            {% for message in conversation.messages %}
+            <div class="message {{ message.role }}">
+                <div class="message-header">
+                    {{ message.role_icon }} {{ message.role_name }}
+                    {% if message.timestamp %}
+                    <span class="timestamp">({{ message.timestamp | humanize_date }})</span>
+                    {% endif %}
+                </div>
+
+                <div class="message-content">
+                    {% for content in message.content_parts %}
+                    <div>{{ content.html | safe }}</div>
+                    {% endfor %}
+
+                    {% for tool in message.tool_uses %}
+                    <div class="tool-use">🔧 {{ tool.name }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if not loop.last %}<hr>{% endif %}
+        {% endfor %}
+
+        {% else %}
+        <!-- Single conversation -->
+        <div class="conversation">
+            {% if conversation.info.start_time %}
+            <div class="conversation-header">
+                <div class="timestamp">{{ conversation.info.start_time | humanize_date }}</div>
+            </div>
+            {% endif %}
+
+            {% for message in conversation.messages %}
+            <div class="message {{ message.role }}">
+                <div class="message-header">
+                    {{ message.role_icon }} {{ message.role_name }}
+                    {% if message.timestamp %}
+                    <span class="timestamp">({{ message.timestamp | humanize_date }})</span>
+                    {% endif %}
+                </div>
+
+                <div class="message-content">
+                    {% for content in message.content_parts %}
+                    <div>{{ content.html | safe }}</div>
+                    {% endfor %}
+
+                    {% for tool in message.tool_uses %}
+                    <div class="tool-use">🔧 {{ tool.name }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

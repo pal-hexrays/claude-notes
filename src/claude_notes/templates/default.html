@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Conversations</title>
+
+<style>
+.conversation {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.conversation-header {
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e1e5e9;
+}
+
+.conversation-header h2 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.timestamp {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+
+.message-nav {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.message-nav h3 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    font-size: 1.1em;
+}
+
+.message-toc {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.message-toc li {
+    margin-bottom: 8px;
+}
+
+.message-toc a {
+    color: #007bff;
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: block;
+    transition: background-color 0.2s;
+}
+
+.message-toc a:hover {
+    background-color: #e9ecef;
+    text-decoration: none;
+}
+
+.message-header {
+    margin: 40px 0 20px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e1e5e9;
+}
+
+.message-title {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.3em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.anchor-link {
+    color: #6c757d;
+    text-decoration: none;
+    font-weight: normal;
+    transition: opacity 0.2s;
+}
+
+.anchor-link:hover {
+    color: #007bff;
+}
+
+.message-timestamp {
+    color: #6c757d;
+    font-size: 0.8em;
+    font-weight: normal;
+    margin-top: 2px;
+}
+
+.message-group {
+    margin-bottom: 25px;
+    display: flex;
+    gap: 15px;
+}
+
+.message-group.user {
+    flex-direction: row;
+}
+
+.message-group.assistant {
+    flex-direction: row;
+}
+
+.role-indicator {
+    flex-shrink: 0;
+    font-size: 1.2em;
+    margin-top: 5px;
+}
+
+.message-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.conversation-nav {
+    background-color: #f1f3f4;
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.conversation-nav h2 {
+    margin: 0 0 15px 0;
+    color: #2c3e50;
+    font-size: 1.2em;
+}
+
+.conversation-toc {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.conversation-toc li {
+    margin-bottom: 10px;
+}
+
+.conversation-toc a {
+    color: #1a73e8;
+    text-decoration: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    display: block;
+    background-color: white;
+    border: 1px solid #dadce0;
+    transition: all 0.2s;
+}
+
+.conversation-toc a:hover {
+    background-color: #f8f9fa;
+    border-color: #1a73e8;
+    text-decoration: none;
+}
+
+.back-to-top {
+    text-align: center;
+    margin: 40px 0 20px 0;
+    padding-top: 20px;
+    border-top: 1px solid #e1e5e9;
+}
+
+.back-to-top a {
+    color: #6c757d;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    transition: all 0.2s;
+    display: inline-block;
+}
+
+.back-to-top a:hover {
+    color: #007bff;
+    background-color: #e9ecef;
+    text-decoration: none;
+}
+
+.text-content {
+    margin-bottom: 15px;
+}
+
+.text-content h1, .text-content h2, .text-content h3 {
+    margin: 20px 0 10px 0;
+    color: #2c3e50;
+}
+
+.text-content code {
+    background-color: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.9em;
+}
+
+.text-content strong {
+    font-weight: 600;
+}
+
+.tool-use {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.tool-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+
+.tool-icon {
+    font-size: 1.2em;
+}
+
+.bash-tool .tool-header {
+    color: #dc3545;
+}
+
+.read-tool .tool-header {
+    color: #28a745;
+}
+
+.edit-tool .tool-header {
+    color: #ffc107;
+}
+
+.multiedit-tool .tool-header {
+    color: #ffc107;
+}
+
+.grep-tool .tool-header {
+    color: #17a2b8;
+}
+
+.tool-output, .file-preview, .diff-preview {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.9em;
+}
+
+.output-line, .file-line {
+    margin-bottom: 2px;
+}
+
+.output-summary {
+    color: #6c757d;
+    font-style: italic;
+    margin-top: 5px;
+}
+
+.file-info {
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+.edit-info {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-left: 10px;
+}
+
+.success-indicator {
+    color: #28a745;
+    margin-left: 10px;
+}
+
+.diff-line {
+    margin-bottom: 2px;
+    padding: 2px 0;
+}
+
+.diff-line.removed {
+    background-color: #ffe6e6;
+    color: #d73a49;
+}
+
+.diff-line.added {
+    background-color: #e6ffed;
+    color: #28a745;
+}
+
+.command-message {
+    font-style: italic;
+    color: #6c757d;
+}
+
+.command-name {
+    font-weight: 600;
+    color: #007bff;
+}
+
+.system-reminder {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 10px;
+    margin: 10px 0;
+    color: #856404;
+}
+
+.unknown-tool {
+    border-left: 4px solid #6c757d;
+}
+
+.multiedit-preview {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.edit-section {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.edit-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.edit-number {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
+.grep-info {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-bottom: 10px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+{% if metadata.has_multiple_conversations %}
+<div class="conversation-nav">
+<h2>Conversations</h2>
+<ul class="conversation-toc">
+{% for conversation in conversations %}
+<li><a href="#conv-{{ conversation.info.conversation_id | default('conv-' ~ loop.index) }}">📝 Conversation {{ loop.index }} ({{ conversation.info.start_time | default('Unknown time') }})</a></li>
+{% endfor %}
+</ul>
+</div>
+{% endif %}
+
+{% for conversation in conversations %}
+<div class="conversation">
+{% if conversation.info.conversation_id %}
+<div class="conversation-header">
+<h2 id="conv-{{ conversation.info.conversation_id }}">Conversation {{ conversation.info.conversation_id }}</h2>
+{% if conversation.info.start_time %}
+<div class="timestamp">{{ conversation.info.start_time }}</div>
+{% endif %}
+</div>
+{% endif %}
+
+{% for message in conversation.messages %}
+<div class="message-group {{ message.role }}">
+<div class="message-header">
+<h3 id="msg-{{ message.message_number }}" class="message-title">
+{{ message.role_icon }} {{ message.role_name }}
+<a href="#msg-{{ message.message_number }}" class="anchor-link">#</a>
+</h3>
+{% if message.timestamp %}
+<div class="message-timestamp">{{ message.timestamp | humanize_date }}</div>
+{% endif %}
+</div>
+
+<div class="message-content">
+{% for content in message.content_parts %}
+<div class="text-content">{{ content.html | safe }}</div>
+{% endfor %}
+
+{% for tool in message.tool_uses %}
+{{ tool | format_tool_use | safe }}
+{% endfor %}
+</div>
+</div>
+{% endfor %}
+
+</div>
+{% if not loop.last %}
+<hr style="margin: 40px 0; border: 1px solid #e1e5e9;">
+{% endif %}
+{% endfor %}
+
+<div class="back-to-top">
+<a href="#top">⬆️ Back to Top</a>
+</div>
+
+</div>
+</body>
+</html>

@@ -175,3 +175,4 @@ class OutputFormat:
     TERMINAL = "terminal"
     HTML = "html"
     ANIMATED = "animated"
+    TEMPLATE = "template"

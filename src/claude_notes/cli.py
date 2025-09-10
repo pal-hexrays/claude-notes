@@ -192,7 +192,8 @@ def order_messages(messages: list, message_order: str) -> list:
 @click.argument("path", type=click.Path(exists=True, path_type=Path), default=".")
 @click.option("--raw", is_flag=True, help="Show raw JSON data instead of formatted view")
 @click.option("--no-pager", is_flag=True, help="Disable pager and show all content at once")
-@click.option("--format", type=click.Choice(["terminal", "html", "animated"]), default="terminal", help="Output format")
+@click.option("--summary", is_flag=True, help="Show only user messages and Claude replies, filtering out tool calls")
+@click.option("--format", type=click.Choice(["terminal", "html", "animated", "template"]), default="terminal", help="Output format")
 @click.option("--output", type=click.Path(), help="Output file (HTML/GIF/MP4/cast format)")
 @click.option(
     "--session-order",
@@ -207,6 +208,7 @@ def order_messages(messages: list, message_order: str) -> list:
     help="Order messages within sessions (asc=oldest first, desc=newest first). Defaults to asc for HTML, desc for terminal.",
 )
 @click.option("--style", type=click.Path(exists=True), help="Custom CSS file to include with HTML format")
+@click.option("--template", type=str, help="Template file or name to use with template format")
 @click.option(
     "--typing-speed", type=float, default=0.05, help="Typing speed in seconds per character (animated format)"
 )
@@ -230,6 +232,7 @@ def show(
     session_order: str,
     message_order: str,
     style: str | None,
+    template: str | None,
     typing_speed: float,
     pause_duration: float,
     cols: int,
@@ -466,6 +469,43 @@ if (savedTheme === 'dark') {
 
         except Exception as e:
             console.print(f"[red]Error generating animation: {e}[/red]")
+    
+    elif format == "template":
+        # Generate template-based HTML output
+        from claude_notes.formatters.template import TemplateFormatter
+
+        try:
+            formatter = TemplateFormatter(template)
+        except ValueError as e:
+            console.print(f"[red]Template Error:[/red] {e}")
+            return
+
+        # Prepare conversations for template rendering
+        all_conversations = []
+        for conv in conversations:
+            # Order the messages based on user preference
+            ordered_messages = order_messages(conv["messages"], message_order)
+            
+            # Apply summary filtering if requested
+            if summary:
+                ordered_messages = formatter._filter_for_summary(ordered_messages)
+            
+            all_conversations.append({
+                "info": conv["info"],
+                "messages": ordered_messages
+            })
+
+        # Generate HTML using template
+        html_output = formatter.format_conversations(all_conversations)
+
+        if output:
+            # Write to file
+            output_path = Path(output)
+            output_path.write_text(html_output, encoding="utf-8")
+            console.print(f"[green]Template HTML output written to: {output_path}[/green]")
+        else:
+            # Print to stdout
+            print(html_output)
 
     else:
         # Display formatted conversations in terminal
