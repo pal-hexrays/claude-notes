@@ -115,12 +115,12 @@ class BaseFormatter(ABC):
     def _filter_for_summary(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Filter messages for summary mode - only user messages and Claude text responses."""
         filtered_messages = []
-        
+
         for msg in messages:
             # Skip tool results completely
             if msg.get("type") == "tool_result":
                 continue
-                
+
             # Skip user messages that are just tool results
             if msg.get("type") == "user":
                 message_data = msg.get("message", {})
@@ -131,18 +131,17 @@ class BaseFormatter(ABC):
                     # Also skip if content is a list with tool_result items
                     elif isinstance(content, list):
                         has_tool_result = any(
-                            isinstance(item, dict) and item.get("type") == "tool_result"
-                            for item in content
+                            isinstance(item, dict) and item.get("type") == "tool_result" for item in content
                         )
                         if has_tool_result:
                             continue
-                            
+
             # For assistant messages, filter out tool uses but keep text content
             if msg.get("type") == "assistant":
                 message_data = msg.get("message", {})
                 if isinstance(message_data, dict):
                     content = message_data.get("content", [])
-                    
+
                     # Filter content to only include text blocks
                     if isinstance(content, list):
                         text_content = []
@@ -154,7 +153,7 @@ class BaseFormatter(ABC):
                             elif isinstance(item, str):
                                 # Handle string content directly
                                 text_content.append({"type": "text", "text": item})
-                        
+
                         # Only include the message if it has text content
                         if text_content:
                             # Create a new message with only text content
@@ -168,7 +167,7 @@ class BaseFormatter(ABC):
             else:
                 # Include other message types (user messages)
                 filtered_messages.append(msg)
-                
+
         return filtered_messages
 
     def _group_messages(self, messages: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:

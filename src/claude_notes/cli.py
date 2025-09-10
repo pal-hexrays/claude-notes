@@ -8,6 +8,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from claude_notes.config import ConfigManager
 from claude_notes.parser import TranscriptParser
 from claude_notes.title_generator import LLMTitleGenerator
 
@@ -99,13 +100,23 @@ def list_projects() -> list[tuple[str, Path, int]]:
 
 @click.group()
 @click.version_option()
-def cli():
+@click.option(
+    "-c",
+    "--config-file",
+    type=click.Path(exists=False, path_type=Path),
+    help="Path to configuration file (default: ~/.claude/claude-notes.settings.json)",
+)
+@click.pass_context
+def cli(ctx, config_file):
     """Transform Claude Code transcript JSONL files to readable formats."""
-    pass
+    # Store config file path in context for subcommands
+    ctx.ensure_object(dict)
+    ctx.obj["config_file"] = config_file
 
 
 @cli.command(name="list-projects")
-def list_projects_cmd():
+@click.pass_context
+def list_projects_cmd(ctx):
     """List all Claude projects."""
     projects = list_projects()
 
@@ -194,7 +205,9 @@ def order_messages(messages: list, message_order: str) -> list:
 @click.option("--raw", is_flag=True, help="Show raw JSON data instead of formatted view")
 @click.option("--no-pager", is_flag=True, help="Disable pager and show all content at once")
 @click.option("--summary", is_flag=True, help="Show only user messages and Claude replies, filtering out tool calls")
-@click.option("--format", type=click.Choice(["terminal", "animated", "template"]), default="terminal", help="Output format")
+@click.option(
+    "--format", type=click.Choice(["terminal", "animated", "template"]), default="terminal", help="Output format"
+)
 @click.option("--output", type=click.Path(), help="Output file (GIF/MP4/cast format for animated, HTML for template)")
 @click.option(
     "--session-order",
@@ -235,7 +248,10 @@ def order_messages(messages: list, message_order: str) -> list:
     default="auto",
     help="LLM provider for title generation (auto tries both)",
 )
+@click.option("--save-config", is_flag=True, help="Save current command line options to configuration file")
+@click.pass_context
 def show(
+    ctx,
     path: Path,
     raw: bool,
     no_pager: bool,
@@ -254,14 +270,54 @@ def show(
     emoji_fallbacks: bool,
     generate_titles: bool,
     llm_provider: str,
+    save_config: bool,
 ):
     """Show all conversations for a Claude project.
 
     If PATH is not specified, uses the current directory.
     """
+    # Load configuration from file
+    config_path = ctx.obj.get("config_file")
+    file_config = ConfigManager.load_config(config_path)
+
+    # Get all CLI arguments
+    cli_args = ctx.params.copy()
+
+    # If save_config flag is set, save current options to config file
+    if save_config:
+        # Remove path since it's typically context-specific
+        save_args = cli_args.copy()
+        save_args.pop("path", None)
+        save_args.pop("save_config", None)
+        ConfigManager.save_config(save_args, config_path)
+        console.print(f"[green]Configuration saved to: {config_path or ConfigManager.DEFAULT_CONFIG_PATH}[/green]")
+
+    # Merge configs (CLI args override file config)
+    merged_config = ConfigManager.merge_configs(file_config, cli_args)
+
+    # Apply merged configuration
+    path = cli_args.get("path", path)  # Path should always come from CLI
+    raw = merged_config.get("raw", raw)
+    no_pager = merged_config.get("no_pager", no_pager)
+    summary = merged_config.get("summary", summary)
+    format = merged_config.get("format", format)
+    output = merged_config.get("output", output)
+    session_order = merged_config.get("session_order", session_order)
+    message_order = merged_config.get("message_order", message_order)
+    style = merged_config.get("style", style)
+    template = merged_config.get("template", template)
+    typing_speed = merged_config.get("typing_speed", typing_speed)
+    pause_duration = merged_config.get("pause_duration", pause_duration)
+    cols = merged_config.get("cols", cols)
+    rows = merged_config.get("rows", rows)
+    max_duration = merged_config.get("max_duration", max_duration)
+    emoji_fallbacks = merged_config.get("emoji_fallbacks", emoji_fallbacks)
+    generate_titles = merged_config.get("generate_titles", generate_titles)
+    llm_provider = merged_config.get("llm_provider", llm_provider)
+
     # Set default message order based on format if not explicitly provided
     if message_order is None:
-        message_order = "asc" if format == "html" else "desc"
+        message_order = "asc" if format == "template" else "desc"
 
     # Convert to absolute path
     abs_path = path.resolve()
@@ -325,15 +381,15 @@ def show(
         key=lambda x: x["start_time"] or x["file_mtime"] or datetime.min.replace(tzinfo=timezone.utc),
         reverse=(session_order == "desc"),
     )
-    
+
     # Generate unique titles if requested
     if title_generator:
         # Collect all message lists
         all_messages = [conv["messages"] for conv in conversations]
-        
+
         # Generate unique titles for all conversations
         titles_and_costs = title_generator.generate_unique_titles(all_messages)
-        
+
         # Assign the generated titles
         for i, (conv, (title, _cost)) in enumerate(zip(conversations, titles_and_costs), 1):
             conv["info"]["title"] = f"S{i:02d}: {title}"
@@ -375,11 +431,11 @@ def show(
         for conv in conversations:
             # Order the messages based on user preference
             ordered_messages = order_messages(conv["messages"], message_order)
-            
+
             # Apply summary filtering if requested
             if summary:
                 ordered_messages = formatter._filter_for_summary(ordered_messages)
-            
+
             all_messages.extend(ordered_messages)
 
             # Add separator between conversations if multiple
@@ -433,7 +489,7 @@ def show(
 
         except Exception as e:
             console.print(f"[red]Error generating animation: {e}[/red]")
-    
+
     elif format == "template":
         # Generate template-based HTML output
         from claude_notes.formatters.template import TemplateFormatter
@@ -449,15 +505,12 @@ def show(
         for conv in conversations:
             # Order the messages based on user preference
             ordered_messages = order_messages(conv["messages"], message_order)
-            
+
             # Apply summary filtering if requested
             if summary:
                 ordered_messages = formatter._filter_for_summary(ordered_messages)
-            
-            all_conversations.append({
-                "info": conv["info"],
-                "messages": ordered_messages
-            })
+
+            all_conversations.append({"info": conv["info"], "messages": ordered_messages})
 
         # Generate HTML using template
         html_output = formatter.format_conversations(all_conversations)
@@ -482,11 +535,11 @@ def show(
             for _i, conv in enumerate(conversations):
                 # Order the messages based on user preference
                 ordered_messages = order_messages(conv["messages"], message_order)
-                
+
                 # Apply summary filtering if requested
                 if summary:
                     ordered_messages = formatter._filter_for_summary(ordered_messages)
-                
+
                 formatter.display_conversation(ordered_messages, conv["info"])
         else:
             # Use pager for progressive display
@@ -498,11 +551,11 @@ def show(
             for _i, conv in enumerate(conversations):
                 # Order the messages based on user preference
                 ordered_messages = order_messages(conv["messages"], message_order)
-                
+
                 # Apply summary filtering if requested
                 if summary:
                     ordered_messages = formatter._filter_for_summary(ordered_messages)
-                
+
                 pager.add_conversation(ordered_messages, conv["info"], formatter)
 
             # Start the pager interface

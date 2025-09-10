@@ -33,7 +33,7 @@ class TitleCache:
 
     def __init__(self, cache_dir: Optional[Path] = None):
         """Initialize the title cache.
-        
+
         Args:
             cache_dir: Directory to store cache file. Defaults to ~/.claude/
         """
@@ -49,7 +49,7 @@ class TitleCache:
         """Load cache from disk."""
         if self.cache_file.exists():
             try:
-                with open(self.cache_file, 'r', encoding='utf-8') as f:
+                with open(self.cache_file, "r", encoding="utf-8") as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError):
                 console.print("[yellow]Warning: Could not load title cache, starting fresh[/yellow]")
@@ -59,7 +59,7 @@ class TitleCache:
     def _save_cache(self):
         """Save cache to disk."""
         try:
-            with open(self.cache_file, 'w', encoding='utf-8') as f:
+            with open(self.cache_file, "w", encoding="utf-8") as f:
                 json.dump(self._cache, f, indent=2, ensure_ascii=False)
         except IOError:
             console.print("[yellow]Warning: Could not save title cache[/yellow]")
@@ -72,7 +72,7 @@ class TitleCache:
             # Handle nested message structure
             actual_msg = msg.get("message", msg)
             role = actual_msg.get("role")
-            
+
             if role in ["user", "assistant"]:
                 # Handle both content formats
                 if "content" in actual_msg:
@@ -89,13 +89,13 @@ class TitleCache:
                     for part in content_parts:
                         if part.get("type") == "text":
                             text_content += part.get("text", "")
-                
+
                 if text_content:
                     relevant_messages.append(f"{role}: {text_content}")
 
         # Create hash from message content
         content = "\n".join(relevant_messages)
-        return hashlib.md5(content.encode('utf-8')).hexdigest()
+        return hashlib.md5(content.encode("utf-8")).hexdigest()
 
     def get(self, cache_key: str) -> Optional[Dict[str, Any]]:
         """Get cached title data."""
@@ -104,11 +104,8 @@ class TitleCache:
     def set(self, cache_key: str, title: str, api_cost: float = 0.0):
         """Cache a generated title."""
         from datetime import datetime
-        self._cache[cache_key] = {
-            "title": title,
-            "generated_date": datetime.now().isoformat(),
-            "api_cost": api_cost
-        }
+
+        self._cache[cache_key] = {"title": title, "generated_date": datetime.now().isoformat(), "api_cost": api_cost}
         self._save_cache()
 
     def get_stats(self) -> Dict[str, Any]:
@@ -117,11 +114,7 @@ class TitleCache:
             return {"total_titles": 0, "total_cost": 0.0}
 
         total_cost = sum(entry.get("api_cost", 0.0) for entry in self._cache.values())
-        return {
-            "total_titles": len(self._cache),
-            "total_cost": total_cost,
-            "cache_file": str(self.cache_file)
-        }
+        return {"total_titles": len(self._cache), "total_cost": total_cost, "cache_file": str(self.cache_file)}
 
 
 class LLMTitleGenerator:
@@ -129,7 +122,7 @@ class LLMTitleGenerator:
 
     def __init__(self, api_key: Optional[str] = None, enable_cache: bool = True, provider: str = "auto"):
         """Initialize the title generator.
-        
+
         Args:
             api_key: API key. If None, will try environment variables.
             enable_cache: Whether to use caching for generated titles.
@@ -149,7 +142,8 @@ class LLMTitleGenerator:
         if not self.client:
             console.print("[yellow]No LLM API configured. Title generation will use fallback format.[/yellow]")
             console.print(
-                "[dim]Set ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable to enable AI titles.[/dim]")
+                "[dim]Set ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable to enable AI titles.[/dim]"
+            )
 
     def _init_openai(self, api_key: Optional[str] = None):
         """Initialize OpenAI client."""
@@ -180,11 +174,11 @@ class LLMTitleGenerator:
 
     def extract_context(self, messages: List[Dict[str, Any]], max_chars: int = 2000) -> str:
         """Extract relevant context from conversation messages for title generation.
-        
+
         Args:
             messages: List of conversation messages
             max_chars: Maximum characters to include in context
-            
+
         Returns:
             Formatted conversation context for API
         """
@@ -196,10 +190,10 @@ class LLMTitleGenerator:
             # Handle nested message structure
             actual_msg = msg.get("message", msg)
             role = actual_msg.get("role")
-            
+
             if role not in ["user", "assistant"]:
                 continue
-            
+
             # Handle both content formats
             if "content" in actual_msg:
                 # Simple string content (might be string or list)
@@ -235,11 +229,11 @@ class LLMTitleGenerator:
 
     def generate_title(self, messages: List[Dict[str, Any]], excluded_titles: List[str] = None) -> Tuple[str, float]:
         """Generate a Seinfeld-style title for a conversation.
-        
+
         Args:
             messages: List of conversation messages
             excluded_titles: List of titles to avoid (for uniqueness)
-            
+
         Returns:
             Tuple of (generated_title, api_cost)
         """
@@ -272,7 +266,7 @@ ABSOLUTELY FORBIDDEN TITLES - DO NOT USE THESE UNDER ANY CIRCUMSTANCES:
 You MUST be creative and find a DIFFERENT, UNIQUE aspect of the conversation to reference.
 If the obvious title is taken, look for secondary themes, moods, specific details, or metaphors.
 """
-            
+
             prompt = f"""Based on the following conversation between a user and Claude, generate a Seinfeld episode title using "The [Noun]" format.
 
 Seinfeld episodes typically:
@@ -300,9 +294,7 @@ Generate only "The [Noun]" title, no explanation or episode number:"""
                     model="gpt-4o-mini",  # Cheapest GPT-4 model
                     max_tokens=50,  # Enough for "The [Compound Noun]" formats
                     temperature=0.8,  # Slightly higher for more variety
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ]
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 title = response.choices[0].message.content.strip()
             else:
@@ -311,12 +303,7 @@ Generate only "The [Noun]" title, no explanation or episode number:"""
                     model="claude-3-5-haiku-20241022",  # Cheapest model
                     max_tokens=50,  # Enough for "The [Compound Noun]" formats
                     temperature=0.8,  # Slightly higher for more variety
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 title = response.content[0].text.strip()
 
@@ -344,24 +331,25 @@ Generate only "The [Noun]" title, no explanation or episode number:"""
 
     def format_episode_title(self, episode_number: int, generated_title: str) -> str:
         """Format title in Seinfeld episode format.
-        
+
         Args:
             episode_number: Episode number (1-based)
             generated_title: Generated title from API
-            
+
         Returns:
             Formatted title like "S01E05: The Template"
         """
         return f"S01E{episode_number:02d}: {generated_title}"
 
-    def generate_titles_for_conversations(self, conversations: List[Dict[str, Any]],
-                                          show_progress: bool = True) -> Dict[int, str]:
+    def generate_titles_for_conversations(
+        self, conversations: List[Dict[str, Any]], show_progress: bool = True
+    ) -> Dict[int, str]:
         """Generate titles for multiple conversations.
-        
+
         Args:
             conversations: List of conversation data
             show_progress: Whether to show progress information
-            
+
         Returns:
             Dictionary mapping conversation index to formatted title
         """
@@ -393,65 +381,70 @@ Generate only "The [Noun]" title, no explanation or episode number:"""
     def get_cache_stats(self) -> Optional[Dict[str, Any]]:
         """Get cache statistics."""
         return self.cache.get_stats() if self.cache else None
-    
-    def generate_unique_titles(self, conversations_messages: List[List[Dict[str, Any]]], 
-                              max_retries: int = 3) -> List[Tuple[str, float]]:
+
+    def generate_unique_titles(
+        self, conversations_messages: List[List[Dict[str, Any]]], max_retries: int = 3
+    ) -> List[Tuple[str, float]]:
         """Generate unique titles for multiple conversations.
-        
+
         Args:
             conversations_messages: List of message lists for each conversation
             max_retries: Maximum attempts to regenerate duplicate titles
-            
+
         Returns:
             List of (title, cost) tuples, one for each conversation
         """
         results = []
         all_titles = set()
         total_cost = 0.0
-        
+
         # First pass: generate initial titles
         for messages in conversations_messages:
             title, cost = self.generate_title(messages)
             results.append((title, cost))
             all_titles.add(title)
             total_cost += cost
-        
+
         # Check for duplicates and regenerate if needed
         for retry in range(max_retries):
             # Find duplicates
             title_counts = {}
             for title, _ in results:
                 title_counts[title] = title_counts.get(title, 0) + 1
-            
+
             duplicates = {title for title, count in title_counts.items() if count > 1}
             if not duplicates:
                 break  # No duplicates, we're done
-            
-            console.print(f"[yellow]Found {len(duplicates)} duplicate titles, regenerating (attempt {retry + 1}/{max_retries})...[/yellow]")
-            
+
+            console.print(
+                f"[yellow]Found {len(duplicates)} duplicate titles, regenerating (attempt {retry + 1}/{max_retries})...[/yellow]"
+            )
+
             # Regenerate duplicates
             for i, (title, old_cost) in enumerate(results):
                 if title in duplicates:
                     # Get all current titles to exclude
                     excluded = [t for t, _ in results]
-                    
+
                     # Try to generate a new unique title
                     new_title, new_cost = self.generate_title(conversations_messages[i], excluded)
-                    
+
                     # Update if we got a different title
                     if new_title not in all_titles:
                         results[i] = (new_title, old_cost + new_cost)
                         all_titles.discard(title)
                         all_titles.add(new_title)
                         total_cost += new_cost
-        
+
         # Final check for any remaining duplicates
         final_counts = {}
         for title, _ in results:
             final_counts[title] = final_counts.get(title, 0) + 1
-        
+
         remaining_dups = sum(1 for count in final_counts.values() if count > 1)
         if remaining_dups > 0:
-            console.print(f"[yellow]Warning: {remaining_dups} duplicate titles remain after {max_retries} attempts[/yellow]")
-        
+            console.print(
+                f"[yellow]Warning: {remaining_dups} duplicate titles remain after {max_retries} attempts[/yellow]"
+            )
+
         return results
