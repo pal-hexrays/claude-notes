@@ -2,7 +2,7 @@
 
 from .base import BaseFormatter, OutputFormat
 from .factory import FormatterFactory
-from .html import HTMLFormatter
 from .terminal import TerminalFormatter
+from .template import TemplateFormatter
 
-__all__ = ["BaseFormatter", "OutputFormat", "TerminalFormatter", "HTMLFormatter", "FormatterFactory"]
+__all__ = ["BaseFormatter", "OutputFormat", "TerminalFormatter", "TemplateFormatter", "FormatterFactory"]
