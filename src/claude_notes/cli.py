@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from claude_notes.parser import TranscriptParser
+from claude_notes.title_generator import LLMTitleGenerator
 
 console = Console()
 
@@ -223,6 +224,17 @@ def order_messages(messages: list, message_order: str) -> list:
     is_flag=True,
     help="Replace emoji with text fallbacks for better GIF compatibility (animated format)",
 )
+@click.option(
+    "--generate-titles",
+    is_flag=True,
+    help="Generate AI-powered Seinfeld-style episode titles for conversations (requires API key)",
+)
+@click.option(
+    "--llm-provider",
+    type=click.Choice(["auto", "anthropic", "openai"]),
+    default="auto",
+    help="LLM provider for title generation (auto tries both)",
+)
 def show(
     path: Path,
     raw: bool,
@@ -240,6 +252,8 @@ def show(
     rows: int,
     max_duration: float | None,
     emoji_fallbacks: bool,
+    generate_titles: bool,
+    llm_provider: str,
 ):
     """Show all conversations for a Claude project.
 
@@ -274,6 +288,11 @@ def show(
 
     # No header output - just start with the conversation
 
+    # Initialize title generator if requested
+    title_generator = None
+    if generate_titles:
+        title_generator = LLMTitleGenerator(enable_cache=True, provider=llm_provider)
+
     # Load all conversations
     conversations = []
     for jsonl_file in jsonl_files:
@@ -306,6 +325,22 @@ def show(
         key=lambda x: x["start_time"] or x["file_mtime"] or datetime.min.replace(tzinfo=timezone.utc),
         reverse=(session_order == "desc"),
     )
+    
+    # Generate unique titles if requested
+    if title_generator:
+        # Collect all message lists
+        all_messages = [conv["messages"] for conv in conversations]
+        
+        # Generate unique titles for all conversations
+        titles_and_costs = title_generator.generate_unique_titles(all_messages)
+        
+        # Assign the generated titles
+        for i, (conv, (title, _cost)) in enumerate(zip(conversations, titles_and_costs), 1):
+            conv["info"]["title"] = f"S{i:02d}: {title}"
+    else:
+        # Assign default titles
+        for i, conv in enumerate(conversations, 1):
+            conv["info"]["title"] = f"Conversation {i}"
 
     if raw:
         # Display raw JSON data
@@ -343,9 +378,10 @@ def show(
             html_parts.append("<h2>Conversations</h2>")
             html_parts.append('<ul class="conversation-toc">')
             for i, conv in enumerate(conversations):
-                conv_id = conv["info"].get("conversation_id", f"conv-{i + 1}")
+                conv_id = conv["info"].get("conversation_id", f"conv-{i+1}")
+                title = conv["info"].get("title", f"Conversation {i+1}")
                 start_time = conv["info"].get("start_time", "Unknown time")
-                html_parts.append(f'<li><a href="#conv-{conv_id}">📝 Conversation {i + 1} ({start_time})</a></li>')
+                html_parts.append(f'<li><a href="#conv-{conv_id}">📝 {title} ({start_time})</a></li>')
             html_parts.append("</ul>")
             html_parts.append("</div>")
 
@@ -435,7 +471,7 @@ if (savedTheme === 'dark') {
                     "type": "assistant",
                     "message": {
                         "role": "assistant",
-                        "content": f"\n--- Conversation {conversations.index(conv) + 1} ---\n",
+                        "content": f"\n--- {conv['info'].get('title', f'Conversation {conversations.index(conv) + 1}')} ---\n",
                     },
                 }
                 all_messages.append(separator_msg)

@@ -76,6 +76,14 @@ class HTMLFormatter(BaseFormatter):
         # Build HTML
         html_parts = []
         conversation_id = conversation_info.get("conversation_id", "unknown")
+        if conversation_id:
+            html_parts.append('<div class="conversation-header">')
+            # Use title if available, otherwise fallback to conversation_id
+            title = conversation_info.get("title", f"Conversation {conversation_id}")
+            html_parts.append(f'<h2 id="conv-{conversation_id}">{title}</h2>')
+            if conversation_info.get("start_time"):
+                html_parts.append(f'<div class="timestamp">{conversation_info["start_time"]}</div>')
+            html_parts.append("</div>")
 
         html_parts.append(f'<article class="thread" id="conv-{conversation_id}">')
 

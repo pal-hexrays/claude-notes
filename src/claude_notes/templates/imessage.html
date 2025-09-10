@@ -582,7 +582,7 @@
                     </div>
                     <div class="conversation-info">
                         <div class="conversation-title">
-                            Claude Conversation {{ conversations|length - loop.index0 }}
+                            {{ conversation.info.title }}
                         </div>
                         <div class="conversation-preview">
                             {% if conversation.messages %}
@@ -693,7 +693,7 @@
         {% for conversation in conversations %}
         allConversations.push({
             id: {{ loop.index }},
-            title: 'Claude Conversation {{ loop.index }}',
+            title: '{{ conversation.info.title }}',
             timestamp: '{{ conversation.info.start_time | default("") }}',
             messages: [
                 {% for message in conversation.messages %}

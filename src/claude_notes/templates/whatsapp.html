@@ -32,10 +32,28 @@
             border-right: 1px solid #e9ecef;
             display: flex;
             flex-direction: column;
-            min-width: 300px;
-            max-width: 450px;
-            resize: horizontal;
-            overflow: auto;
+            min-width: 250px;
+            max-width: 600px;
+            position: relative;
+        }
+        
+        .resize-handle {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: ew-resize;
+            background: transparent;
+            z-index: 10;
+        }
+        
+        .resize-handle:hover {
+            background: rgba(7, 94, 84, 0.2);
+        }
+        
+        .resize-handle:active {
+            background: rgba(7, 94, 84, 0.3);
         }
         
         .sidebar-header {
@@ -45,6 +63,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            height: 71px;
+            box-sizing: border-box;
         }
         
         .sidebar-title {
@@ -83,7 +103,7 @@
             cursor: pointer;
             transition: background-color 0.2s;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
         }
         
         .conversation-item:hover {
@@ -135,6 +155,11 @@
             font-size: 12px;
             color: #667781;
             white-space: nowrap;
+            margin-left: auto;
+            padding-left: 10px;
+            flex-shrink: 0;
+            align-self: flex-start;
+            margin-top: 2px;
         }
         
         /* Main Chat Area */
@@ -153,6 +178,8 @@
             display: flex;
             align-items: center;
             border-bottom: 1px solid #128c7e;
+            height: 71px;
+            box-sizing: border-box;
         }
         
         .chat-avatar {
@@ -410,6 +437,7 @@
     <div class="whatsapp-container">
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
+            <div class="resize-handle" id="resizeHandle"></div>
             <div class="sidebar-header">
                 <div class="sidebar-title">Claude Conversations</div>
                 <button class="mobile-toggle" onclick="toggleSidebar()">✕</button>
@@ -430,7 +458,7 @@
                     </div>
                     <div class="conversation-info">
                         <div class="conversation-title">
-                            Conversation {{ conversations|length - loop.index0 }}
+                            {{ conversation.info.title }}
                         </div>
                         <div class="conversation-preview">
                             {% if conversation.messages %}
@@ -444,13 +472,13 @@
                                 Empty conversation
                             {% endif %}
                         </div>
-                    </div>
-                    <div class="conversation-time">
-                        {% if conversation.info.start_time %}
-                            {{ conversation.info.start_time | humanize_date }}
-                        {% else %}
-                            Recent
-                        {% endif %}
+                        <div class="conversation-time">
+                            {% if conversation.info.start_time %}
+                                {{ conversation.info.start_time | humanize_date }}
+                            {% else %}
+                                Recent
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -534,7 +562,7 @@
         {% for conversation in conversations %}
         allConversations.push({
             id: {{ loop.index }},
-            title: 'Conversation {{ loop.index }}',
+            title: '{{ conversation.info.title }}',
             timestamp: '{{ conversation.info.start_time | default("") }}',
             messages: [
                 {% for message in conversation.messages %}
@@ -744,6 +772,36 @@
             }
         });
         
+        // Handle sidebar resizing
+        const resizeHandle = document.getElementById('resizeHandle');
+        const sidebar = document.getElementById('sidebar');
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        resizeHandle.addEventListener('mousedown', function(e) {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = parseInt(document.defaultView.getComputedStyle(sidebar).width, 10);
+            document.addEventListener('mousemove', doDrag);
+            document.addEventListener('mouseup', stopDrag);
+            e.preventDefault();
+        });
+
+        function doDrag(e) {
+            if (!isResizing) return;
+            const newWidth = startWidth + e.clientX - startX;
+            if (newWidth >= 250 && newWidth <= 600) {
+                sidebar.style.width = newWidth + 'px';
+            }
+        }
+
+        function stopDrag() {
+            isResizing = false;
+            document.removeEventListener('mousemove', doDrag);
+            document.removeEventListener('mouseup', stopDrag);
+        }
+
         // Handle window resize
         window.addEventListener('resize', function() {
             if (window.innerWidth > 768) {
