@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ metadata.title }} - WhatsApp Style</title>
+    <title>{{ metadata.title }} - Messages Style</title>
     
     <style>
         * {
@@ -13,100 +13,111 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
             height: 100vh;
             overflow: hidden;
-            background-color: #f0f0f0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
         
-        .whatsapp-container {
+        .messages-container {
             display: flex;
             height: 100vh;
-            background-color: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.3);
+            margin: 20px;
+            background: white;
         }
         
         /* Sidebar */
         .sidebar {
-            width: 350px;
-            background-color: #f8f9fa;
-            border-right: 1px solid #e9ecef;
+            width: 320px;
+            background: #f6f6f6;
+            border-right: 1px solid #e5e5e5;
             display: flex;
             flex-direction: column;
-            min-width: 300px;
-            max-width: 450px;
+            min-width: 280px;
+            max-width: 400px;
             resize: horizontal;
             overflow: auto;
         }
         
         .sidebar-header {
-            padding: 20px;
-            background-color: #075e54;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            padding: 20px 20px 15px 20px;
+            background: #f6f6f6;
+            border-bottom: 1px solid #e5e5e5;
         }
         
         .sidebar-title {
-            font-size: 1.2em;
-            font-weight: 500;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin-bottom: 10px;
         }
         
         .search-box {
-            padding: 15px;
-            background-color: #fff;
-            border-bottom: 1px solid #e9ecef;
+            padding: 0 20px 15px 20px;
+            background: #f6f6f6;
         }
         
         .search-input {
             width: 100%;
-            padding: 10px 15px;
-            border: 1px solid #ddd;
+            padding: 8px 32px 8px 12px;
+            border: none;
             border-radius: 20px;
+            background: #e8e8e8;
             outline: none;
             font-size: 14px;
+            color: #1d1d1f;
+            font-family: inherit;
         }
         
         .search-input:focus {
-            border-color: #075e54;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3);
         }
         
         .conversations-list {
             flex: 1;
             overflow-y: auto;
-            background-color: #fff;
+            background: #f6f6f6;
         }
         
         .conversation-item {
-            padding: 15px 20px;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 12px 20px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s ease;
             display: flex;
             align-items: center;
+            border-bottom: 0.5px solid #e5e5e5;
         }
         
         .conversation-item:hover {
-            background-color: #f5f5f5;
+            background: #ebebeb;
         }
         
         .conversation-item.active {
-            background-color: #e7f3ff;
-            border-right: 3px solid #075e54;
+            background: #007aff;
+            color: white;
         }
         
         .conversation-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background-color: #075e54;
+            width: 44px;
+            height: 44px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #007aff, #5856d6);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-weight: bold;
-            margin-right: 15px;
-            font-size: 18px;
+            font-weight: 600;
+            margin-right: 12px;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        .conversation-item.active .conversation-avatar {
+            background: rgba(255, 255, 255, 0.2);
         }
         
         .conversation-info {
@@ -115,26 +126,44 @@
         }
         
         .conversation-title {
-            font-weight: 500;
-            font-size: 16px;
-            margin-bottom: 4px;
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 2px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            color: inherit;
         }
         
         .conversation-preview {
             font-size: 13px;
-            color: #667781;
+            color: #8e8e93;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+        
+        .conversation-item.active .conversation-preview {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .conversation-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            flex-shrink: 0;
         }
         
         .conversation-time {
             font-size: 12px;
-            color: #667781;
+            color: #8e8e93;
             white-space: nowrap;
+            margin-bottom: 2px;
+        }
+        
+        .conversation-item.active .conversation-time {
+            color: rgba(255, 255, 255, 0.8);
         }
         
         /* Main Chat Area */
@@ -142,31 +171,31 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            background-color: #e5ddd5;
-            background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23075e54' fill-opacity='0.03'%3E%3Cpath d='M20 20c0 11.046-8.954 20-20 20s-20-8.954-20-20 8.954-20 20-20 20 8.954 20 20zm0-2c0-9.941-8.059-18-18-18s-18 8.059-18 18 8.059 18 18 18 18-8.059 18-18z'/%3E%3C/g%3E%3C/svg%3E");
+            background: white;
         }
         
         .chat-header {
-            background-color: #075e54;
-            color: white;
+            background: white;
             padding: 15px 20px;
             display: flex;
             align-items: center;
-            border-bottom: 1px solid #128c7e;
+            border-bottom: 0.5px solid #e5e5e5;
+            min-height: 70px;
         }
         
         .chat-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: #128c7e;
+            width: 36px;
+            height: 36px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #007aff, #5856d6);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-weight: bold;
-            margin-right: 15px;
-            font-size: 16px;
+            font-weight: 600;
+            margin-right: 12px;
+            font-size: 14px;
+            flex-shrink: 0;
         }
         
         .chat-info {
@@ -174,72 +203,99 @@
         }
         
         .chat-title {
-            font-weight: 500;
+            font-weight: 600;
             font-size: 16px;
-            margin-bottom: 2px;
+            color: #1d1d1f;
+            margin-bottom: 1px;
         }
         
         .chat-subtitle {
             font-size: 13px;
-            opacity: 0.8;
+            color: #8e8e93;
         }
         
         .message-search {
             padding: 10px 20px;
-            background-color: #fff;
-            border-bottom: 1px solid #e9ecef;
+            background: #f6f6f6;
+            border-bottom: 0.5px solid #e5e5e5;
         }
         
         .message-search-input {
             width: 100%;
-            padding: 8px 15px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 16px;
+            background: white;
             outline: none;
-            font-size: 14px;
+            font-size: 13px;
+            color: #1d1d1f;
+            font-family: inherit;
         }
         
         .message-search-input:focus {
-            border-color: #075e54;
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.3);
         }
         
-        .messages-container {
+        .messages-view {
             flex: 1;
             overflow-y: auto;
             padding: 20px;
             display: none;
+            background: white;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f8f8f8'%3E%3Cpath d='M30 30c16.569 0 30-13.431 30-30C60 16.569 46.569 30 30 30z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
         }
         
-        .messages-container.active {
+        .messages-view.active {
             display: block;
         }
         
-        /* Welcome message when no conversation is selected */
-        .welcome-message {
+        /* Welcome screen */
+        .welcome-screen {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100%;
-            color: #667781;
+            color: #8e8e93;
             text-align: center;
+            background: white;
         }
         
         .welcome-icon {
-            font-size: 80px;
+            width: 120px;
+            height: 120px;
+            border-radius: 60px;
+            background: linear-gradient(135deg, #007aff, #5856d6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             margin-bottom: 20px;
-            opacity: 0.5;
+            font-size: 48px;
+            color: white;
+        }
+        
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 8px;
+        }
+        
+        .welcome-subtitle {
+            font-size: 16px;
+            color: #8e8e93;
         }
         
         /* Message bubbles */
         .message-bubble {
-            margin-bottom: 15px;
+            margin-bottom: 8px;
             display: flex;
-            animation: fadeIn 0.3s ease-in;
+            animation: slideUp 0.3s ease-out;
+            align-items: flex-end;
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         
@@ -252,53 +308,79 @@
         }
         
         .bubble-content {
-            max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 18px;
+            max-width: 65%;
             position: relative;
             word-wrap: break-word;
+            display: flex;
+            flex-direction: column;
         }
         
-        .message-bubble.user .bubble-content {
-            background-color: #dcf8c6;
-            border-bottom-right-radius: 4px;
+        .bubble-text {
+            padding: 10px 16px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.4;
+            position: relative;
         }
         
-        .message-bubble.assistant .bubble-content {
-            background-color: #fff;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        /* User messages (blue bubbles) */
+        .message-bubble.user .bubble-text {
+            background: #007aff;
+            color: white;
+            border-bottom-right-radius: 6px;
+            margin-left: 40px;
+        }
+        
+        /* Assistant messages (gray bubbles) */
+        .message-bubble.assistant .bubble-text {
+            background: #f2f2f7;
+            color: #1d1d1f;
+            border-bottom-left-radius: 6px;
+            margin-right: 40px;
         }
         
         .message-time {
             font-size: 11px;
-            color: #667781;
-            margin-top: 6px;
-            text-align: right;
-        }
-        
-        .message-bubble.assistant .message-time {
-            text-align: left;
-        }
-        
-        .message-text {
-            line-height: 1.4;
-            color: #333;
+            color: #8e8e93;
+            margin: 4px 0 8px 0;
+            text-align: center;
+            align-self: stretch;
         }
         
         .message-text h1,
         .message-text h2,
         .message-text h3 {
-            margin: 10px 0 5px 0;
-            color: #075e54;
+            margin: 8px 0 4px 0;
+            font-weight: 600;
+        }
+        
+        .message-bubble.user .message-text h1,
+        .message-bubble.user .message-text h2,
+        .message-bubble.user .message-text h3 {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .message-bubble.assistant .message-text h1,
+        .message-bubble.assistant .message-text h2,
+        .message-bubble.assistant .message-text h3 {
+            color: #1d1d1f;
         }
         
         .message-text code {
-            background-color: #f0f0f0;
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-family: 'Monaco', 'Menlo', monospace;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, Menlo, monospace;
             font-size: 13px;
+        }
+        
+        .message-bubble.user .message-text code {
+            background: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.95);
+        }
+        
+        .message-bubble.assistant .message-text code {
+            background: #e8e8ed;
+            color: #1d1d1f;
         }
         
         .message-text strong {
@@ -310,34 +392,71 @@
         }
         
         .tool-use-bubble {
-            margin-top: 8px;
+            margin-top: 6px;
             padding: 8px 12px;
-            background-color: rgba(7, 94, 84, 0.1);
-            border-radius: 8px;
-            border-left: 3px solid #075e54;
+            border-radius: 12px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .message-bubble.user .tool-use-bubble {
+            background: rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .message-bubble.assistant .tool-use-bubble {
+            background: rgba(0, 0, 0, 0.06);
+            color: #8e8e93;
         }
         
         .tool-name {
             font-weight: 500;
-            color: #075e54;
-            font-size: 12px;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
         
         .tool-details {
+            font-family: 'SF Mono', Monaco, Menlo, monospace;
             font-size: 11px;
-            color: #667781;
-            font-family: 'Monaco', 'Menlo', monospace;
+            opacity: 0.8;
+        }
+        
+        /* Message grouping */
+        .message-group {
+            margin-bottom: 16px;
+        }
+        
+        .message-group .message-bubble:not(:last-child) {
+            margin-bottom: 2px;
+        }
+        
+        .message-group .message-bubble:not(:last-child) .bubble-text {
+            border-bottom-left-radius: 18px;
+            border-bottom-right-radius: 18px;
+        }
+        
+        .message-group .message-bubble:last-child .message-time {
+            display: block;
+        }
+        
+        .message-group .message-bubble:not(:last-child) .message-time {
+            display: none;
         }
         
         /* Responsive design */
         @media (max-width: 768px) {
+            .messages-container {
+                margin: 0;
+                border-radius: 0;
+                height: 100vh;
+            }
+            
             .sidebar {
                 width: 100%;
                 position: absolute;
                 left: -100%;
                 z-index: 1000;
                 transition: left 0.3s ease;
+                border-radius: 0;
             }
             
             .sidebar.mobile-open {
@@ -349,75 +468,108 @@
             }
             
             .mobile-toggle {
-                display: block;
-                background: none;
-                border: none;
-                color: white;
-                font-size: 18px;
-                cursor: pointer;
+                display: flex !important;
             }
         }
         
         .mobile-toggle {
             display: none;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+            margin-right: 8px;
+        }
+        
+        .mobile-toggle:hover {
+            background: rgba(0, 0, 0, 0.05);
         }
         
         /* Search highlighting */
         .highlight {
-            background-color: #ffeb3b;
-            padding: 1px 2px;
+            background: rgba(255, 235, 59, 0.4);
             border-radius: 2px;
+            padding: 1px;
         }
         
         .no-results {
             text-align: center;
-            color: #667781;
+            color: #8e8e93;
             font-style: italic;
-            margin: 20px 0;
+            margin: 40px 0;
+            font-size: 15px;
         }
         
-        /* Scroll to top button */
-        .scroll-to-top {
+        /* Scroll indicator */
+        .scroll-indicator {
             position: fixed;
-            bottom: 30px;
+            bottom: 80px;
             right: 30px;
-            background-color: #075e54;
-            color: white;
+            width: 44px;
+            height: 44px;
+            background: rgba(0, 122, 255, 0.9);
             border: none;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            border-radius: 22px;
+            color: white;
             cursor: pointer;
             display: none;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-size: 16px;
+            box-shadow: 0 4px 20px rgba(0, 122, 255, 0.3);
             transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
         }
         
-        .scroll-to-top:hover {
-            background-color: #128c7e;
+        .scroll-indicator:hover {
             transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(0, 122, 255, 0.4);
         }
         
-        .scroll-to-top.visible {
+        .scroll-indicator.visible {
             display: flex;
+        }
+        
+        /* Custom scrollbar */
+        .messages-view::-webkit-scrollbar,
+        .conversations-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .messages-view::-webkit-scrollbar-track,
+        .conversations-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .messages-view::-webkit-scrollbar-thumb,
+        .conversations-list::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+        }
+        
+        .messages-view::-webkit-scrollbar-thumb:hover,
+        .conversations-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.2);
         }
     </style>
 </head>
 <body>
-    <div class="whatsapp-container">
+    <div class="messages-container">
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-title">Claude Conversations</div>
-                <button class="mobile-toggle" onclick="toggleSidebar()">✕</button>
+                <div class="sidebar-title">Messages</div>
             </div>
             
             <div class="search-box">
                 <input type="text" class="search-input" id="sessionSearch" 
-                       placeholder="Search conversations..." 
+                       placeholder="Search" 
                        oninput="searchSessions()">
             </div>
             
@@ -430,27 +582,29 @@
                     </div>
                     <div class="conversation-info">
                         <div class="conversation-title">
-                            Conversation {{ conversations|length - loop.index0 }}
+                            Claude Conversation {{ conversations|length - loop.index0 }}
                         </div>
                         <div class="conversation-preview">
                             {% if conversation.messages %}
                                 {% set first_user_msg = conversation.messages | selectattr("role", "equalto", "user") | first %}
                                 {% if first_user_msg and first_user_msg.content_parts %}
-                                    {{ first_user_msg.content_parts[0].text[:50] }}{% if first_user_msg.content_parts[0].text|length > 50 %}...{% endif %}
+                                    {{ first_user_msg.content_parts[0].text[:60] }}{% if first_user_msg.content_parts[0].text|length > 60 %}...{% endif %}
                                 {% else %}
                                     {{ conversation.messages|length }} messages
                                 {% endif %}
                             {% else %}
-                                Empty conversation
+                                No messages
                             {% endif %}
                         </div>
                     </div>
-                    <div class="conversation-time">
-                        {% if conversation.info.start_time %}
-                            {{ conversation.info.start_time | humanize_date }}
-                        {% else %}
-                            Recent
-                        {% endif %}
+                    <div class="conversation-meta">
+                        <div class="conversation-time">
+                            {% if conversation.info.start_time %}
+                                {{ conversation.info.start_time | humanize_date }}
+                            {% else %}
+                                Now
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -460,54 +614,60 @@
         <!-- Main Chat Area -->
         <div class="chat-main">
             <div class="chat-header">
-                <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+                <button class="mobile-toggle" onclick="toggleSidebar()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+                    </svg>
+                </button>
                 <div class="chat-avatar" id="chatAvatar">💬</div>
                 <div class="chat-info">
                     <div class="chat-title" id="chatTitle">Select a conversation</div>
-                    <div class="chat-subtitle" id="chatSubtitle">Choose from the sidebar</div>
+                    <div class="chat-subtitle" id="chatSubtitle">Choose from the sidebar to start</div>
                 </div>
             </div>
             
-            <div class="message-search">
+            <div class="message-search" style="display: none;" id="messageSearchContainer">
                 <input type="text" class="message-search-input" id="messageSearch" 
-                       placeholder="Search messages in this conversation..." 
-                       oninput="searchMessages()" style="display: none;">
+                       placeholder="Search messages..." 
+                       oninput="searchMessages()">
             </div>
             
-            <!-- Welcome message -->
-            <div class="welcome-message" id="welcomeMessage">
+            <!-- Welcome screen -->
+            <div class="welcome-screen" id="welcomeScreen">
                 <div class="welcome-icon">💬</div>
-                <h2>Claude Conversations</h2>
-                <p>Select a conversation from the sidebar to start viewing messages</p>
+                <div class="welcome-title">Messages</div>
+                <div class="welcome-subtitle">Select a conversation to view your Claude chat history</div>
             </div>
             
-            <!-- Message containers for each conversation -->
+            <!-- Message views for each conversation -->
             {% for conversation in conversations %}
-            <div class="messages-container" id="messages-{{ loop.index }}" data-conv-id="{{ loop.index }}">
+            <div class="messages-view" id="messages-{{ loop.index }}" data-conv-id="{{ loop.index }}">
                 {% for message in conversation.messages %}
                 <div class="message-bubble {{ message.role }}" data-message="{{ loop.index }}">
                     <div class="bubble-content">
-                        <div class="message-text">
-                            {% for content in message.content_parts %}
-                                {{ content.html | safe }}
-                            {% endfor %}
-                            
-                            {% for tool in message.tool_uses %}
-                            <div class="tool-use-bubble">
-                                <div class="tool-name">🔧 {{ tool.name }}</div>
-                                <div class="tool-details">
-                                    {% if tool.name == 'Bash' and tool.input.command %}
-                                        $ {{ tool.input.command }}
-                                    {% elif tool.name == 'Read' and tool.input.file_path %}
-                                        📄 {{ tool.input.file_path | basename }}
-                                    {% elif tool.name == 'Edit' and tool.input.file_path %}
-                                        ✏️ {{ tool.input.file_path | basename }}
-                                    {% else %}
-                                        {{ tool.name }} tool used
-                                    {% endif %}
+                        <div class="bubble-text">
+                            <div class="message-text">
+                                {% for content in message.content_parts %}
+                                    {{ content.html | safe }}
+                                {% endfor %}
+                                
+                                {% for tool in message.tool_uses %}
+                                <div class="tool-use-bubble">
+                                    <div class="tool-name">{{ tool.name }}</div>
+                                    <div class="tool-details">
+                                        {% if tool.name == 'Bash' and tool.input.command %}
+                                            $ {{ tool.input.command[:50] }}{% if tool.input.command|length > 50 %}...{% endif %}
+                                        {% elif tool.name == 'Read' and tool.input.file_path %}
+                                            📄 {{ tool.input.file_path | basename }}
+                                        {% elif tool.name == 'Edit' and tool.input.file_path %}
+                                            ✏️ {{ tool.input.file_path | basename }}
+                                        {% else %}
+                                            Tool executed
+                                        {% endif %}
+                                    </div>
                                 </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
                         </div>
                         <div class="message-time">
                             {% if message.timestamp %}
@@ -522,19 +682,18 @@
         </div>
     </div>
     
-    <!-- Scroll to top button -->
-    <button class="scroll-to-top" id="scrollToTop" onclick="scrollToTop()">↑</button>
+    <!-- Scroll indicator -->
+    <button class="scroll-indicator" id="scrollIndicator" onclick="scrollToTop()">↑</button>
     
     <script>
         let currentConversationId = null;
         let allConversations = [];
-        let allMessages = {};
         
         // Initialize conversations data
         {% for conversation in conversations %}
         allConversations.push({
             id: {{ loop.index }},
-            title: 'Conversation {{ loop.index }}',
+            title: 'Claude Conversation {{ loop.index }}',
             timestamp: '{{ conversation.info.start_time | default("") }}',
             messages: [
                 {% for message in conversation.messages %}
@@ -550,11 +709,6 @@
         });
         {% endfor %}
         
-        // Initialize messages lookup
-        allConversations.forEach(conv => {
-            allMessages[conv.id] = conv.messages;
-        });
-        
         function selectConversation(convId) {
             // Remove active class from all conversation items
             document.querySelectorAll('.conversation-item').forEach(item => {
@@ -564,26 +718,26 @@
             // Add active class to selected conversation
             document.querySelector(`[data-conv-id="${convId}"]`).classList.add('active');
             
-            // Hide welcome message
-            document.getElementById('welcomeMessage').style.display = 'none';
+            // Hide welcome screen
+            document.getElementById('welcomeScreen').style.display = 'none';
             
-            // Hide all message containers
-            document.querySelectorAll('.messages-container').forEach(container => {
-                container.classList.remove('active');
+            // Hide all message views
+            document.querySelectorAll('.messages-view').forEach(view => {
+                view.classList.remove('active');
             });
             
             // Show selected conversation messages
-            const messagesContainer = document.getElementById(`messages-${convId}`);
-            messagesContainer.classList.add('active');
+            const messagesView = document.getElementById(`messages-${convId}`);
+            messagesView.classList.add('active');
             
             // Update chat header
             const conv = allConversations.find(c => c.id === convId);
             document.getElementById('chatAvatar').textContent = `C${convId}`;
             document.getElementById('chatTitle').textContent = conv.title;
-            document.getElementById('chatSubtitle').textContent = conv.messages.length + ' messages';
+            document.getElementById('chatSubtitle').textContent = `${conv.messages.length} messages`;
             
             // Show message search
-            document.getElementById('messageSearch').style.display = 'block';
+            document.getElementById('messageSearchContainer').style.display = 'block';
             
             // Clear message search
             document.getElementById('messageSearch').value = '';
@@ -591,8 +745,10 @@
             
             currentConversationId = convId;
             
-            // Scroll to top of messages
-            messagesContainer.scrollTop = 0;
+            // Scroll to bottom of messages (like iMessage)
+            setTimeout(() => {
+                messagesView.scrollTop = messagesView.scrollHeight;
+            }, 100);
             
             // Close sidebar on mobile
             if (window.innerWidth <= 768) {
@@ -620,14 +776,17 @@
             if (!currentConversationId) return;
             
             const query = document.getElementById('messageSearch').value.toLowerCase();
-            const messagesContainer = document.getElementById(`messages-${currentConversationId}`);
-            const messageBubbles = messagesContainer.querySelectorAll('.message-bubble');
+            const messagesView = document.getElementById(`messages-${currentConversationId}`);
+            const messageBubbles = messagesView.querySelectorAll('.message-bubble');
             
             // Clear previous highlights
             clearMessageHighlights();
             
             if (!query) {
                 messageBubbles.forEach(bubble => bubble.style.display = 'flex');
+                // Remove no results message
+                const noResultsMsg = messagesView.querySelector('.no-results');
+                if (noResultsMsg) noResultsMsg.remove();
                 return;
             }
             
@@ -646,18 +805,18 @@
                 }
             });
             
-            // Show no results message if needed
-            let noResultsMsg = messagesContainer.querySelector('.no-results');
+            // Show/hide no results message
+            let noResultsMsg = messagesView.querySelector('.no-results');
             if (!hasResults && query) {
                 if (!noResultsMsg) {
                     noResultsMsg = document.createElement('div');
                     noResultsMsg.className = 'no-results';
-                    noResultsMsg.textContent = 'No messages found matching your search.';
-                    messagesContainer.appendChild(noResultsMsg);
+                    noResultsMsg.textContent = 'No messages found.';
+                    messagesView.appendChild(noResultsMsg);
                 }
                 noResultsMsg.style.display = 'block';
             } else if (noResultsMsg) {
-                noResultsMsg.style.display = 'none';
+                noResultsMsg.remove();
             }
         }
         
@@ -692,8 +851,8 @@
         function clearMessageHighlights() {
             if (!currentConversationId) return;
             
-            const messagesContainer = document.getElementById(`messages-${currentConversationId}`);
-            const highlights = messagesContainer.querySelectorAll('.highlight');
+            const messagesView = document.getElementById(`messages-${currentConversationId}`);
+            const highlights = messagesView.querySelectorAll('.highlight');
             
             highlights.forEach(highlight => {
                 const parent = highlight.parentNode;
@@ -713,30 +872,37 @@
         
         function scrollToTop() {
             if (currentConversationId) {
-                const messagesContainer = document.getElementById(`messages-${currentConversationId}`);
-                messagesContainer.scrollTop = 0;
+                const messagesView = document.getElementById(`messages-${currentConversationId}`);
+                messagesView.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
             }
         }
         
-        // Show/hide scroll to top button
-        document.addEventListener('scroll', function() {
-            const scrollToTopBtn = document.getElementById('scrollToTop');
+        // Show/hide scroll indicator
+        function updateScrollIndicator() {
             if (currentConversationId) {
-                const messagesContainer = document.getElementById(`messages-${currentConversationId}`);
-                if (messagesContainer.scrollTop > 200) {
-                    scrollToTopBtn.classList.add('visible');
+                const messagesView = document.getElementById(`messages-${currentConversationId}`);
+                const scrollIndicator = document.getElementById('scrollIndicator');
+                
+                if (messagesView.scrollTop > 200) {
+                    scrollIndicator.classList.add('visible');
                 } else {
-                    scrollToTopBtn.classList.remove('visible');
+                    scrollIndicator.classList.remove('visible');
                 }
             }
-        }, true);
+        }
+        
+        // Add scroll listeners
+        document.addEventListener('scroll', updateScrollIndicator, true);
         
         // Close sidebar when clicking outside on mobile
         document.addEventListener('click', function(event) {
             if (window.innerWidth <= 768) {
                 const sidebar = document.getElementById('sidebar');
                 const isClickInsideSidebar = sidebar.contains(event.target);
-                const isToggleButton = event.target.classList.contains('mobile-toggle');
+                const isToggleButton = event.target.closest('.mobile-toggle');
                 
                 if (!isClickInsideSidebar && !isToggleButton) {
                     sidebar.classList.remove('mobile-open');
@@ -751,11 +917,8 @@
             }
         });
         
-        // Initialize: select first conversation if available
-        if (allConversations.length > 0) {
-            // Don't auto-select, let user choose
-            document.getElementById('welcomeMessage').style.display = 'flex';
-        }
+        // Initialize with welcome screen
+        document.getElementById('welcomeScreen').style.display = 'flex';
     </script>
 </body>
 </html>
