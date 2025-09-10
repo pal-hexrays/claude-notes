@@ -198,7 +198,7 @@ def order_messages(messages: list, message_order: str) -> list:
 @click.option(
     "--session-order",
     type=click.Choice(["asc", "desc"]),
-    default="desc",
+    default="asc",
     help="Order sessions by timestamp (asc=oldest first, desc=newest first)",
 )
 @click.option(
@@ -227,6 +227,7 @@ def show(
     path: Path,
     raw: bool,
     no_pager: bool,
+    summary: bool,
     format: str,
     output: str | None,
     session_order: str,
@@ -351,6 +352,11 @@ def show(
         for i, conv in enumerate(conversations):
             # Order the messages based on user preference
             ordered_messages = order_messages(conv["messages"], message_order)
+            
+            # Apply summary filtering if requested
+            if summary:
+                ordered_messages = formatter._filter_for_summary(ordered_messages)
+            
             html_content = formatter.format_conversation(ordered_messages, conv["info"])
             html_parts.append(html_content)
             if i < len(conversations) - 1:
@@ -416,6 +422,11 @@ if (savedTheme === 'dark') {
         for conv in conversations:
             # Order the messages based on user preference
             ordered_messages = order_messages(conv["messages"], message_order)
+            
+            # Apply summary filtering if requested
+            if summary:
+                ordered_messages = formatter._filter_for_summary(ordered_messages)
+            
             all_messages.extend(ordered_messages)
 
             # Add separator between conversations if multiple
@@ -518,6 +529,11 @@ if (savedTheme === 'dark') {
             for _i, conv in enumerate(conversations):
                 # Order the messages based on user preference
                 ordered_messages = order_messages(conv["messages"], message_order)
+                
+                # Apply summary filtering if requested
+                if summary:
+                    ordered_messages = formatter._filter_for_summary(ordered_messages)
+                
                 formatter.display_conversation(ordered_messages, conv["info"])
         else:
             # Use pager for progressive display
@@ -529,6 +545,11 @@ if (savedTheme === 'dark') {
             for _i, conv in enumerate(conversations):
                 # Order the messages based on user preference
                 ordered_messages = order_messages(conv["messages"], message_order)
+                
+                # Apply summary filtering if requested
+                if summary:
+                    ordered_messages = formatter._filter_for_summary(ordered_messages)
+                
                 pager.add_conversation(ordered_messages, conv["info"], formatter)
 
             # Start the pager interface
