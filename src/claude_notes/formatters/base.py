@@ -232,6 +232,5 @@ class OutputFormat:
     """Enumeration of supported output formats."""
 
     TERMINAL = "terminal"
-    HTML = "html"
     ANIMATED = "animated"
     TEMPLATE = "template"
