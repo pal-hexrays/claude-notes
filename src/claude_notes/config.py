@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 class ConfigManager:
     """Manages configuration settings for claude-notes."""
 
-    DEFAULT_CONFIG_PATH = Path.home() / ".claude" / "claude-notes.settings.json"
+    DEFAULT_CONFIG_PATH = Path.cwd() / ".claude" / "claude-notes.settings.json"
 
     @staticmethod
     def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
@@ -57,7 +57,7 @@ class ConfigManager:
             json.dump(filtered_settings, f, indent=2)
 
     @staticmethod
-    def merge_configs(file_config: Dict[str, Any], cli_args: Dict[str, Any]) -> Dict[str, Any]:
+    def merge_configs(file_config: Dict[str, Any], cli_args: Dict[str, Any], explicit_args: set = None) -> Dict[str, Any]:
         """Merge configuration from file with CLI arguments.
 
         CLI arguments take precedence over file configuration.
@@ -65,6 +65,7 @@ class ConfigManager:
         Args:
             file_config: Configuration loaded from file
             cli_args: Arguments passed via CLI
+            explicit_args: Set of argument names that were explicitly provided
 
         Returns:
             Merged configuration dictionary
@@ -72,11 +73,18 @@ class ConfigManager:
         # Start with file config
         merged = file_config.copy()
 
-        # Override with CLI args (excluding None values and special keys)
-        for key, value in cli_args.items():
-            # Skip None values, internal Click context values, and special flags
-            if value is not None and not key.startswith("_") and key not in ["config_file", "save_config"]:
-                merged[key] = value
+        # If we have explicit_args, only use those CLI args
+        if explicit_args is not None:
+            for key in explicit_args:
+                if key in cli_args and key not in ["config_file", "save_config"]:
+                    merged[key] = cli_args[key]
+        else:
+            # Fallback to old behavior
+            # Override with CLI args (excluding None values and special keys)
+            for key, value in cli_args.items():
+                # Skip None values, internal Click context values, and special flags
+                if value is not None and not key.startswith("_") and key not in ["config_file", "save_config"]:
+                    merged[key] = value
 
         return merged
 

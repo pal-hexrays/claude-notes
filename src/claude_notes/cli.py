@@ -282,18 +282,29 @@ def show(
 
     # Get all CLI arguments
     cli_args = ctx.params.copy()
+    
+    # Track which arguments were explicitly provided on command line
+    # In Click, we can check parameter sources to see which were explicitly set
+    explicit_args = set()
+    for param_name in ctx.params:
+        param_source = ctx.get_parameter_source(param_name)
+        # COMMANDLINE means it was explicitly provided by the user
+        if param_source == click.core.ParameterSource.COMMANDLINE:
+            explicit_args.add(param_name)
 
     # If save_config flag is set, save current options to config file
     if save_config:
-        # Remove path since it's typically context-specific
-        save_args = cli_args.copy()
-        save_args.pop("path", None)
-        save_args.pop("save_config", None)
+        # Only save arguments that were explicitly provided
+        save_args = {}
+        for arg_name in explicit_args:
+            if arg_name not in ["path", "save_config"]:  # Exclude path and save_config itself
+                save_args[arg_name] = cli_args[arg_name]
+        
         ConfigManager.save_config(save_args, config_path)
         console.print(f"[green]Configuration saved to: {config_path or ConfigManager.DEFAULT_CONFIG_PATH}[/green]")
 
-    # Merge configs (CLI args override file config)
-    merged_config = ConfigManager.merge_configs(file_config, cli_args)
+    # Merge configs (only explicit CLI args override file config)
+    merged_config = ConfigManager.merge_configs(file_config, cli_args, explicit_args)
 
     # Apply merged configuration
     path = cli_args.get("path", path)  # Path should always come from CLI
