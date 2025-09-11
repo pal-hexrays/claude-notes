@@ -388,6 +388,20 @@
     {% for msg in group %}
         {% if msg.is_user_message() or msg.is_assistant_message() %}
         {% set role = msg.message.role if msg.message else "unknown" %}
+        {% set text_content = msg.get_text_content() %}
+        {% set has_tools = false %}
+        {% if msg.message and msg.message.content %}
+            {% if msg.message.content is iterable and msg.message.content is not string %}
+                {% for item in msg.message.content %}
+                    {% if item.type == "tool_use" %}
+                        {% set has_tools = true %}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endif %}
+        
+        {# Only render message if it has text content or tool uses #}
+        {% if text_content or has_tools %}
         <div class="message-group {{ role }}">
             <div class="message-header">
                 <h3 id="msg-{{ loop.index }}" class="message-title">
@@ -400,7 +414,6 @@
             </div>
             
             <div class="message-content">
-                {% set text_content = msg.get_text_content() %}
                 {% if text_content %}
                     <div class="text-content">{{ text_content | format_text_html | safe }}</div>
                 {% endif %}
@@ -416,6 +429,7 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
         {% endif %}
     {% endfor %}
 {% endfor %}

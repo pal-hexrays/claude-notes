@@ -205,6 +205,19 @@ class BaseFormatter(ABC):
 
                     if is_tool_result_only:
                         continue
+                    # Also skip if content is a list with only tool_result items
+                    elif isinstance(content, list):
+                        has_text = False
+                        has_tool_result = False
+                        for item in content:
+                            if isinstance(item, dict):
+                                if item.get("type") == "text" and item.get("text", "").strip():
+                                    has_text = True
+                                elif item.get("type") == "tool_result":
+                                    has_tool_result = True
+                        # Skip if it only has tool_result items and no text
+                        if has_tool_result and not has_text:
+                            continue
 
             # Extract the actual message from the structure
             if msg.message:

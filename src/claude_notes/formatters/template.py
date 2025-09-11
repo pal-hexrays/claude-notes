@@ -74,6 +74,9 @@ class TemplateFormatter(BaseFormatter):
         self.env.filters["get_text_content"] = lambda msg: msg.get_text_content() if hasattr(msg, 'get_text_content') else ""
         self.env.filters["is_user_message"] = lambda msg: msg.is_user_message() if hasattr(msg, 'is_user_message') else False
         self.env.filters["is_assistant_message"] = lambda msg: msg.is_assistant_message() if hasattr(msg, 'is_assistant_message') else False
+        self.env.filters["format_time_only"] = self._format_time_only
+        self.env.filters["format_date_header"] = self._format_date_header
+        self.env.filters["get_message_date"] = self._get_message_date
 
         # Load the template
         try:
@@ -154,6 +157,22 @@ class TemplateFormatter(BaseFormatter):
 
         # Basic markdown conversion
         import re
+        
+        # Handle Claude's special XML-style tags (after HTML escape, they're now &lt; and &gt;)
+        # Remove command-message tags but keep content in italic
+        content = re.sub(r"&lt;command-message&gt;(.*?)&lt;/command-message&gt;", r"<em>\1</em>", content, flags=re.DOTALL)
+        
+        # Remove command-name tags but keep content in bold
+        content = re.sub(r"&lt;command-name&gt;(.*?)&lt;/command-name&gt;", r"<strong>\1</strong>", content, flags=re.DOTALL)
+        
+        # Remove command-args tags but keep content in code
+        content = re.sub(r"&lt;command-args&gt;(.*?)&lt;/command-args&gt;", r"<code>\1</code>", content, flags=re.DOTALL)
+        
+        # Remove local-command-stdout tags but keep content
+        content = re.sub(r"&lt;local-command-stdout&gt;(.*?)&lt;/local-command-stdout&gt;", r"<pre>\1</pre>", content, flags=re.DOTALL)
+        
+        # Remove any other unmatched XML-style tags
+        content = re.sub(r"&lt;/?(command-\w+|local-\w+)&gt;", "", content)
 
         # Bold **text**
         content = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", content)
@@ -297,6 +316,75 @@ class TemplateFormatter(BaseFormatter):
         elif tool_name == "Edit" and isinstance(tool_input, dict):
             file_path = tool_input.get("file_path", "")
             output += f'<div>✏️ Editing {html.escape(Path(file_path).name)}</div>'
+        elif tool_name == "Write" and isinstance(tool_input, dict):
+            file_path = tool_input.get("file_path", "")
+            output += f'<div>📝 Writing {html.escape(Path(file_path).name)}</div>'
+        elif tool_name == "ExitPlanMode" and isinstance(tool_input, dict):
+            plan = tool_input.get("plan", "")
+            output += f'<div>📋 Planning Mode</div>'
+            if plan:
+                # Convert markdown to HTML-safe format with basic formatting
+                plan_html = html.escape(plan)
+                # Preserve line breaks and basic markdown formatting
+                plan_html = plan_html.replace('\n', '<br>')
+                plan_html = plan_html.replace('### ', '<strong>')
+                plan_html = plan_html.replace('## ', '<strong>')
+                plan_html = plan_html.replace('# ', '<strong>')
+                # Close strong tags at line end
+                lines = []
+                for line in plan_html.split('<br>'):
+                    if '<strong>' in line and '</strong>' not in line:
+                        line += '</strong>'
+                    lines.append(line)
+                plan_html = '<br>'.join(lines)
+                output += f'<div class="tool-plan">{plan_html}</div>'
+        elif tool_name == "TodoWrite" and isinstance(tool_input, dict):
+            todos = tool_input.get("todos", [])
+            output += f'<div>📝 Managing {len(todos)} todos</div>'
+            if todos:
+                output += '<ul class="tool-todos">'
+                for todo in todos[:5]:  # Show first 5 todos
+                    status = todo.get("status", "pending")
+                    content = todo.get("content", "")
+                    status_icon = "✅" if status == "completed" else "🔄" if status == "in_progress" else "⏳"
+                    output += f'<li>{status_icon} {html.escape(content)}</li>'
+                if len(todos) > 5:
+                    output += f'<li>... and {len(todos) - 5} more</li>'
+                output += '</ul>'
+        elif tool_name == "Grep" and isinstance(tool_input, dict):
+            pattern = tool_input.get("pattern", "")
+            path = tool_input.get("path", ".")
+            output += f'<div>🔍 Searching for "{html.escape(pattern)}" in {html.escape(str(path))}</div>'
+        elif tool_name == "Glob" and isinstance(tool_input, dict):
+            pattern = tool_input.get("pattern", "")
+            output += f'<div>📁 Finding files matching "{html.escape(pattern)}"</div>'
+        elif tool_name == "MultiEdit" and isinstance(tool_input, dict):
+            file_path = tool_input.get("file_path", "")
+            edits = tool_input.get("edits", [])
+            output += f'<div>✏️ Making {len(edits)} edits to {html.escape(Path(file_path).name)}</div>'
+        elif tool_name == "Task" and isinstance(tool_input, dict):
+            description = tool_input.get("description", "")
+            subagent_type = tool_input.get("subagent_type", "")
+            output += f'<div>🤖 Launching {html.escape(subagent_type)} agent: {html.escape(description)}</div>'
+        elif tool_name == "WebFetch" and isinstance(tool_input, dict):
+            url = tool_input.get("url", "")
+            output += f'<div>🌐 Fetching {html.escape(url)}</div>'
+        elif tool_name == "WebSearch" and isinstance(tool_input, dict):
+            query = tool_input.get("query", "")
+            output += f'<div>🔎 Searching web for "{html.escape(query)}"</div>'
+        elif tool_name == "BashOutput" and isinstance(tool_input, dict):
+            bash_id = tool_input.get("bash_id", "")
+            output += f'<div>📊 Getting output from bash session {html.escape(bash_id)}</div>'
+        elif tool_name == "KillBash" and isinstance(tool_input, dict):
+            shell_id = tool_input.get("shell_id", "")
+            output += f'<div>⛔ Killing bash session {html.escape(shell_id)}</div>'
+        elif tool_name == "LS" and isinstance(tool_input, dict):
+            path = tool_input.get("path", ".")
+            output += f'<div>📂 Listing directory {html.escape(str(path))}</div>'
+        elif tool_name.startswith("mcp__"):
+            # MCP tools
+            clean_name = tool_name.replace("mcp__", "").replace("_", " ").title()
+            output += f'<div>🔌 MCP: {html.escape(clean_name)}</div>'
         else:
             # Fallback for other tools
             output += f'<div>{html.escape(tool_name)}</div>'
@@ -305,6 +393,60 @@ class TemplateFormatter(BaseFormatter):
             output += f'<div class="tool-result">{html.escape(str(tool_result)[:500])}</div>'
         output += "</div>"
         return output
+
+    def _format_time_only(self, timestamp_str: str) -> str:
+        """Format timestamp to show only time (HH:MM format)."""
+        if not timestamp_str:
+            return ""
+        
+        try:
+            from datetime import timezone
+            dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            local_dt = dt.astimezone()
+            return local_dt.strftime("%H:%M")
+        except (ValueError, TypeError):
+            return ""
+    
+    def _format_date_header(self, timestamp_str: str) -> str:
+        """Format timestamp for date separator (e.g., 'Today', 'Yesterday', 'January 15, 2024')."""
+        if not timestamp_str:
+            return "Unknown Date"
+        
+        try:
+            from datetime import timezone, timedelta
+            dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            local_dt = dt.astimezone()
+            now = datetime.now(timezone.utc).astimezone()
+            
+            # Calculate days difference
+            date_diff = (now.date() - local_dt.date()).days
+            
+            if date_diff == 0:
+                return "Today"
+            elif date_diff == 1:
+                return "Yesterday"
+            elif date_diff < 7:
+                return local_dt.strftime("%A")  # Day name (e.g., "Monday")
+            else:
+                # Show full date for older messages
+                if local_dt.year == now.year:
+                    return local_dt.strftime("%B %d")
+                else:
+                    return local_dt.strftime("%B %d, %Y")
+        except (ValueError, TypeError):
+            return "Unknown Date"
+    
+    def _get_message_date(self, timestamp_str: str) -> str:
+        """Get the date part of a timestamp (YYYY-MM-DD format for comparison)."""
+        if not timestamp_str:
+            return ""
+        
+        try:
+            dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            local_dt = dt.astimezone()
+            return local_dt.strftime("%Y-%m-%d")
+        except (ValueError, TypeError):
+            return ""
 
     def format_tool_use(self, tool_name: str, tool_use: dict[str, Any], tool_result: str | None = None) -> str:
         """Format a tool use with its result (required by BaseFormatter)."""

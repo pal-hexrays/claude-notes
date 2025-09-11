@@ -101,6 +101,26 @@ The tool processes Claude Code transcript JSONL files which contain conversation
   - Terminal-formatted text (with syntax highlighting, formatting)
   - HTML files (with styling, code blocks, conversation structure)
 
+## Claude Code Tools in JSONL Files
+
+The following tools are commonly found in Claude Code transcript JSONL files:
+
+1. **Bash** - Execute bash commands
+2. **BashOutput** - Get output from background bash processes
+3. **Edit** - Edit files
+4. **ExitPlanMode** - Exit planning mode
+5. **Glob** - Search for files by pattern
+6. **Grep** - Search file contents
+7. **KillBash** - Kill background bash processes
+8. **LS** - List directory contents
+9. **MultiEdit** - Make multiple edits to a file
+10. **Read** - Read file contents
+11. **Task** - Launch agents for complex tasks
+12. **TodoWrite** - Manage todo lists
+13. **Write** - Write files
+14. **mcp__code-index__find_files** - MCP tool for finding files
+15. **mcp__code-index__search_code_advanced** - MCP tool for advanced code search
+
 ## Git Workflow
 
 This project follows a structured Git workflow to maintain code quality and enable collaboration:

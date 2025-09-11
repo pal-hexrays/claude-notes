@@ -308,6 +308,23 @@
             text-align: left;
         }
         
+        .date-separator {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        
+        .date-label {
+            background-color: #e1f5fe;
+            color: #075e54;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 500;
+            display: inline-block;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+        
         .message-text {
             line-height: 1.4;
             color: #333;
@@ -526,14 +543,40 @@
             <!-- Message containers for each conversation -->
             {% for conversation in conversations %}
             <div class="messages-container" id="messages-{{ loop.index }}" data-conv-id="{{ loop.index }}">
+                {% set current_date = namespace(value='') %}
                 {% for entry in conversation.grouped_messages %}
                     {% for msg in entry %}
                         {% if msg.is_user_message() or msg.is_assistant_message() %}
                         {% set role = msg.message.role if msg.message else "unknown" %}
+                        {% set text_content = msg.get_text_content() %}
+                        {% set has_tools = false %}
+                        {% if msg.message and msg.message.content %}
+                            {% if msg.message.content is iterable and msg.message.content is not string %}
+                                {% for item in msg.message.content %}
+                                    {% if item.type == "tool_use" %}
+                                        {% set has_tools = true %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endif %}
+                        
+                        {# Only render message bubble if it has text content or tool uses #}
+                        {% if text_content or has_tools %}
+                        
+                        {# Add date separator when date changes #}
+                        {% if msg.timestamp %}
+                            {% set msg_date = msg.timestamp | get_message_date %}
+                            {% if msg_date != current_date.value %}
+                                {% set current_date.value = msg_date %}
+                                <div class="date-separator">
+                                    <span class="date-label">{{ msg.timestamp | format_date_header }}</span>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                        
                         <div class="message-bubble {{ role }}" data-message="{{ loop.index }}">
                             <div class="bubble-content">
                                 <div class="message-text">
-                                    {% set text_content = msg.get_text_content() %}
                                     {% if text_content %}
                                         {{ text_content | format_text_html | safe }}
                                     {% endif %}
@@ -568,11 +611,12 @@
                                 </div>
                                 <div class="message-time">
                                     {% if msg.timestamp %}
-                                        {{ msg.timestamp | humanize_date }}
+                                        {{ msg.timestamp | format_time_only }}
                                     {% endif %}
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                         {% endif %}
                     {% endfor %}
                 {% endfor %}
@@ -601,7 +645,7 @@
                 {
                     id: {{ loop.index }},
                     role: '{{ msg.message.role if msg.message else "unknown" }}',
-                    content: `{{ msg.get_text_content() | default("") | replace('\n', '\\n') | replace('`', '\\`') | replace('$', '\\$') }}`,
+                    content: `{{ msg.get_text_content() | default("") | replace('<command-name>', '') | replace('</command-name>', '') | replace('<command-message>', '') | replace('</command-message>', '') | replace('<command-args>', '') | replace('</command-args>', '') | replace('<local-command-stdout>', '') | replace('</local-command-stdout>', '') | replace('\n', '\\n') | replace('`', '\\`') | replace('$', '\\$') }}`,
                     timestamp: '{{ msg.timestamp | default("") }}',
                     tools: [
                         {% if msg.message and msg.message.content %}
