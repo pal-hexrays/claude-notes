@@ -237,17 +237,75 @@ class TemplateFormatter(BaseFormatter):
                 return "just now"
             elif total_seconds < 3600:  # Less than 1 hour
                 minutes = int(total_seconds / 60)
-                return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+                if minutes == 1:
+                    return "1 minute ago"
+                elif minutes < 5:
+                    return f"{minutes} minutes ago"
+                elif minutes < 10:
+                    return "5 minutes ago"
+                elif minutes < 15:
+                    return "10 minutes ago"
+                elif minutes < 20:
+                    return "15 minutes ago"
+                elif minutes < 30:
+                    return "20 minutes ago"
+                elif minutes < 45:
+                    return "30 minutes ago"
+                else:
+                    return "45 minutes ago"
             elif total_seconds < 86400:  # Less than 1 day
                 hours = int(total_seconds / 3600)
-                return f"{hours} hour{'s' if hours != 1 else ''} ago"
-            elif total_seconds < 2592000:  # Less than 30 days
+                minutes = int((total_seconds % 3600) / 60)
+                
+                if hours == 1:
+                    if minutes < 30:
+                        return "1 hour ago"
+                    else:
+                        return "1.5 hours ago"
+                elif hours < 6:
+                    # Show half-hour precision for recent hours
+                    if minutes >= 30:
+                        return f"{hours}.5 hours ago"
+                    else:
+                        return f"{hours} hours ago"
+                elif hours < 12:
+                    return f"{hours} hours ago"
+                elif hours < 18:
+                    return "today"
+                else:
+                    return f"{hours} hours ago"
+            elif total_seconds < 172800:  # Less than 2 days
+                return "yesterday"
+            elif total_seconds < 604800:  # Less than 1 week
                 days = int(total_seconds / 86400)
-                return f"{days} day{'s' if days != 1 else ''} ago"
+                return f"{days} days ago"
+            elif total_seconds < 2419200:  # Less than 4 weeks
+                weeks = int(total_seconds / 604800)
+                if weeks == 1:
+                    return "1 week ago"
+                else:
+                    return f"{weeks} weeks ago"
+            elif total_seconds < 5184000:  # Less than 60 days
+                weeks = int(total_seconds / 604800)
+                if weeks <= 4:
+                    return "1 month ago"
+                else:
+                    return f"{weeks // 4} months ago"
+            elif total_seconds < 31536000:  # Less than 1 year
+                months = int(total_seconds / 2592000)
+                if months == 1:
+                    return "1 month ago"
+                else:
+                    return f"{months} months ago"
             else:
                 # For older dates, show the actual date
                 local_dt = dt.astimezone()
-                return local_dt.strftime("%B %d, %Y at %I:%M %p")
+                # Show year only if it's different from current year
+                current_year = datetime.now().year
+                if local_dt.year == current_year:
+                    return local_dt.strftime("%B %d at %I:%M %p")
+                else:
+                    return local_dt.strftime("%B %d, %Y")
         except (ValueError, TypeError):
             # Fallback for unparseable dates
             return timestamp_str

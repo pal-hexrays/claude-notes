@@ -166,6 +166,10 @@
             color: rgba(255, 255, 255, 0.8);
         }
         
+        .conversation-item.active .conversation-meta > div:last-child {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
         /* Main Chat Area */
         .chat-main {
             flex: 1;
@@ -603,6 +607,12 @@
                                 {{ conversation.info.start_time | humanize_date }}
                             {% else %}
                                 Now
+                            {% endif %}
+                        </div>
+                        <div style="font-size: 11px; color: #8e8e93; margin-top: 2px;">
+                            {{ conversation.info.message_count }} msgs
+                            {% if conversation.info.session_duration %}
+                                • {{ (conversation.info.session_duration / 60) | round(0) }}m
                             {% endif %}
                         </div>
                     </div>

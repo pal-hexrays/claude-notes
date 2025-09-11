@@ -1,6 +1,7 @@
 """Parser for Claude Code transcript JSONL files."""
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -82,6 +83,18 @@ class TranscriptParser:
             "cache_read_tokens": total_cache_read,
             "cache_creation_tokens": total_cache_creation,
         }
+        
+        # Calculate session duration
+        if info["start_time"] and info["end_time"]:
+            try:
+                start_dt = datetime.fromisoformat(info["start_time"].replace("Z", "+00:00"))
+                end_dt = datetime.fromisoformat(info["end_time"].replace("Z", "+00:00"))
+                duration = end_dt - start_dt
+                info["session_duration"] = duration.total_seconds()
+            except (ValueError, TypeError):
+                info["session_duration"] = None
+        else:
+            info["session_duration"] = None
 
         # Try to get conversation ID and session ID
         if self.file_path.stem:

@@ -478,6 +478,13 @@
                             {% else %}
                                 Recent
                             {% endif %}
+                            <br>
+                            <span style="font-size: 11px;">
+                                {{ conversation.info.message_count }} msgs
+                                {% if conversation.info.session_duration %}
+                                    • {{ (conversation.info.session_duration / 60) | round(0) }}m
+                                {% endif %}
+                            </span>
                         </div>
                     </div>
                 </div>
