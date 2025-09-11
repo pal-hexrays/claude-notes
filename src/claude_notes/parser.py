@@ -5,6 +5,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
+from .models import TranscriptEntry
+
 
 class TranscriptParser:
     """Parse Claude Code transcript JSONL files."""
@@ -12,20 +16,28 @@ class TranscriptParser:
     def __init__(self, file_path: Path):
         """Initialize parser with a transcript file path."""
         self.file_path = file_path
-        self.messages: list[dict[str, Any]] = []
+        self.messages: list[dict[str, Any]] = []  # Raw messages
+        self.entries: list[TranscriptEntry] = []  # Typed entries
         self._parse()
 
     def _parse(self):
         """Parse the JSONL file."""
         with open(self.file_path, encoding="utf-8") as f:
-            for line in f:
+            for line_num, line in enumerate(f, 1):
                 line = line.strip()
                 if line:
                     try:
                         data = json.loads(line)
                         self.messages.append(data)
+                        # Try to parse as TranscriptEntry
+                        try:
+                            entry = TranscriptEntry(**data)
+                            self.entries.append(entry)
+                        except ValidationError as ve:
+                            # Store raw data if can't parse
+                            print(f"Warning: Line {line_num} could not be parsed as TranscriptEntry: {ve}")
                     except json.JSONDecodeError as e:
-                        print(f"Warning: Failed to parse line in {self.file_path}: {e}")
+                        print(f"Warning: Failed to parse JSON at line {line_num} in {self.file_path}: {e}")
 
     def get_conversation_info(self) -> dict[str, Any]:
         """Get basic information about the conversation."""
@@ -83,7 +95,7 @@ class TranscriptParser:
             "cache_read_tokens": total_cache_read,
             "cache_creation_tokens": total_cache_creation,
         }
-        
+
         # Calculate session duration
         if info["start_time"] and info["end_time"]:
             try:
@@ -106,8 +118,12 @@ class TranscriptParser:
 
         return info
 
-    def get_messages(self) -> list[dict[str, Any]]:
-        """Get all messages from the transcript."""
+    def get_messages(self) -> list[TranscriptEntry]:
+        """Get all typed transcript entries."""
+        return self.entries
+
+    def get_raw_messages(self) -> list[dict[str, Any]]:
+        """Get all raw messages from the transcript (for backward compatibility)."""
         return self.messages
 
     def get_summary(self) -> str | None:

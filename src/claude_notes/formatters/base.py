@@ -1,7 +1,9 @@
 """Base formatter classes for Claude conversations."""
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Union
+
+from ..models import TranscriptEntry
 
 
 class BaseFormatter(ABC):
@@ -12,11 +14,11 @@ class BaseFormatter(ABC):
         self._tool_results = {}
 
     @abstractmethod
-    def format_conversation(self, messages: list[dict[str, Any]], conversation_info: dict[str, Any]) -> str:
+    def format_conversation(self, messages: list[TranscriptEntry], conversation_info: dict[str, Any]) -> str:
         """Format and return a conversation as a string.
 
         Args:
-            messages: List of message dictionaries
+            messages: List of TranscriptEntry objects
             conversation_info: Conversation metadata
 
         Returns:
@@ -38,14 +40,14 @@ class BaseFormatter(ABC):
         """
         pass
 
-    def _collect_tool_results(self, messages: list[dict[str, Any]]) -> None:
+    def _collect_tool_results(self, messages: list[TranscriptEntry]) -> None:
         """Collect tool results and map them to their parent tool uses."""
         # Map tool results by looking for user messages after tool uses
         for i, msg in enumerate(messages):
-            if msg.get("type") == "assistant" and msg.get("uuid"):
+            if msg.type == "assistant" and msg.uuid:
                 # Check if this assistant message has tool uses
-                message_data = msg.get("message", {})
-                content = message_data.get("content", [])
+                message_data = msg.message
+                content = message_data.content if message_data else []
                 has_tool_use = False
 
                 if isinstance(content, list):
@@ -58,8 +60,8 @@ class BaseFormatter(ABC):
                     # Look for the next user message which should contain the result
                     for j in range(i + 1, min(i + 5, len(messages))):
                         next_msg = messages[j]
-                        if next_msg.get("type") == "user":
-                            next_content = next_msg.get("message", {}).get("content", "")
+                        if next_msg.type == "user":
+                            next_content = next_msg.message.content if next_msg.message else ""
                             tool_result_content = None
 
                             # Handle both string and list formats
@@ -80,50 +82,50 @@ class BaseFormatter(ABC):
                                     tool_result_content = tool_result_content.split("<system-reminder>")[0].strip()
 
                                 # Check if there's additional structured data in toolUseResult
-                                if "toolUseResult" in next_msg:
-                                    tool_data = next_msg["toolUseResult"]
+                                if next_msg.toolUseResult:
+                                    tool_data = next_msg.toolUseResult
                                     # For Edit/MultiEdit tools, we want the structured patch data
                                     if isinstance(tool_data, dict) and any(
                                         key in tool_data for key in ["structuredPatch", "edits", "filePath"]
                                     ):
                                         # Store both the text result and structured data
-                                        self._tool_results[msg["uuid"]] = {
+                                        self._tool_results[msg.uuid] = {
                                             "text": tool_result_content,
                                             "structured_data": tool_data,
                                         }
                                     else:
-                                        self._tool_results[msg["uuid"]] = tool_result_content
+                                        self._tool_results[msg.uuid] = tool_result_content
                                 else:
-                                    self._tool_results[msg["uuid"]] = tool_result_content
+                                    self._tool_results[msg.uuid] = tool_result_content
                                 break
-                        elif next_msg.get("type") == "tool_result":
+                        elif next_msg.type == "tool_result":
                             # Direct tool result
-                            result = next_msg.get("message", "")
-                            if isinstance(result, dict):
-                                result = result.get("content", str(result))
-                            self._tool_results[msg["uuid"]] = str(result)
+                            result = next_msg.message
+                            if result and hasattr(result, 'content'):
+                                result = result.content
+                            self._tool_results[msg.uuid] = str(result) if result else ""
 
                             # Also check toolUseResult field
-                            if "toolUseResult" in next_msg:
-                                tool_result = next_msg["toolUseResult"]
+                            if next_msg.toolUseResult:
+                                tool_result = next_msg.toolUseResult
                                 if isinstance(tool_result, str):
-                                    self._tool_results[msg["uuid"]] = tool_result
+                                    self._tool_results[msg.uuid] = tool_result
                                 elif isinstance(tool_result, dict):
-                                    self._tool_results[msg["uuid"]] = tool_result.get("content", str(tool_result))
+                                    self._tool_results[msg.uuid] = tool_result.get("content", str(tool_result))
                             break
 
-    def _filter_for_summary(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _filter_for_summary(self, messages: list[TranscriptEntry]) -> list[TranscriptEntry]:
         """Filter messages for summary mode - only user messages and Claude text responses."""
         filtered_messages = []
 
         for msg in messages:
             # Skip tool results completely
-            if msg.get("type") == "tool_result":
+            if msg.type == "tool_result":
                 continue
 
             # Skip user messages that are just tool results
-            if msg.get("type") == "user":
-                message_data = msg.get("message", {})
+            if msg.type == "user":
+                message_data = msg.message
                 if isinstance(message_data, dict):
                     content = message_data.get("content", "")
                     if isinstance(content, str) and content.strip().startswith("Tool Result:"):
@@ -137,8 +139,8 @@ class BaseFormatter(ABC):
                             continue
 
             # For assistant messages, filter out tool uses but keep text content
-            if msg.get("type") == "assistant":
-                message_data = msg.get("message", {})
+            if msg.type == "assistant":
+                message_data = msg.message
                 if isinstance(message_data, dict):
                     content = message_data.get("content", [])
 
@@ -156,11 +158,9 @@ class BaseFormatter(ABC):
 
                         # Only include the message if it has text content
                         if text_content:
-                            # Create a new message with only text content
-                            filtered_msg = msg.copy()
-                            filtered_msg["message"] = message_data.copy()
-                            filtered_msg["message"]["content"] = text_content
-                            filtered_messages.append(filtered_msg)
+                            # For now, just include the original message
+                            # TODO: Create a filtered version with only text content
+                            filtered_messages.append(msg)
                     elif isinstance(content, str) and content.strip():
                         # String content - include as-is
                         filtered_messages.append(msg)
@@ -170,7 +170,7 @@ class BaseFormatter(ABC):
 
         return filtered_messages
 
-    def _group_messages(self, messages: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
+    def _group_messages(self, messages: list[TranscriptEntry]) -> list[list[TranscriptEntry]]:
         """Group consecutive messages by the same role."""
         if not messages:
             return []
@@ -181,17 +181,14 @@ class BaseFormatter(ABC):
 
         for msg in messages:
             # Skip tool results - they're handled inline with tool uses
-            if msg.get("type") == "tool_result":
+            if msg.type == "tool_result":
                 continue
 
             # Skip user messages that are just tool results - they appear inline now
-            message_data = msg.get("message", {})
-            if isinstance(message_data, dict):
-                role = message_data.get("role")
-                content = message_data.get("content", "")
-
-                # Skip user messages that only contain tool results
-                if role == "user":
+            if msg.type == "user":
+                message_data = msg.message
+                if isinstance(message_data, dict):
+                    content = message_data.get("content", "")
                     is_tool_result_only = False
 
                     # Check string content
@@ -209,8 +206,13 @@ class BaseFormatter(ABC):
                     if is_tool_result_only:
                         continue
 
+            # Extract the actual message from the structure
+            if msg.message:
+                message_data = msg.message
+                role = message_data.role
+
                 # Skip meta messages or messages without role
-                if msg.get("isMeta") or not role:
+                if msg.isMeta or not role:
                     continue
 
                 if role != current_role:

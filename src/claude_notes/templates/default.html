@@ -384,28 +384,40 @@
 </div>
 {% endif %}
 
-{% for message in conversation.messages %}
-<div class="message-group {{ message.role }}">
-<div class="message-header">
-<h3 id="msg-{{ message.message_number }}" class="message-title">
-{{ message.role_icon }} {{ message.role_name }}
-<a href="#msg-{{ message.message_number }}" class="anchor-link">#</a>
-</h3>
-{% if message.timestamp %}
-<div class="message-timestamp">{{ message.timestamp | humanize_date }}</div>
-{% endif %}
-</div>
-
-<div class="message-content">
-{% for content in message.content_parts %}
-<div class="text-content">{{ content.html | safe }}</div>
-{% endfor %}
-
-{% for tool in message.tool_uses %}
-{{ tool | format_tool_use | safe }}
-{% endfor %}
-</div>
-</div>
+{% for group in conversation.grouped_messages %}
+    {% for msg in group %}
+        {% if msg.is_user_message() or msg.is_assistant_message() %}
+        {% set role = msg.message.role if msg.message else "unknown" %}
+        <div class="message-group {{ role }}">
+            <div class="message-header">
+                <h3 id="msg-{{ loop.index }}" class="message-title">
+                    {% if role == "user" %}👤{% elif role == "assistant" %}🤖{% else %}⚙️{% endif %} {{ role|title }}
+                    <a href="#msg-{{ loop.index }}" class="anchor-link">#</a>
+                </h3>
+                {% if msg.timestamp %}
+                <div class="message-timestamp">{{ msg.timestamp | humanize_date }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="message-content">
+                {% set text_content = msg.get_text_content() %}
+                {% if text_content %}
+                    <div class="text-content">{{ text_content | format_text_html | safe }}</div>
+                {% endif %}
+                
+                {% if msg.message and msg.message.content %}
+                    {% if msg.message.content is iterable and msg.message.content is not string %}
+                        {% for item in msg.message.content %}
+                            {% if item.type == "tool_use" %}
+                                {{ item | format_tool_use | safe }}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
 {% endfor %}
 
 </div>

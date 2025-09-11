@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 from jinja2 import Environment, FileSystemLoader, Template, select_autoescape
 
 from claude_notes.formatters.base import BaseFormatter
+from claude_notes.models import TranscriptEntry
 
 
 class TemplateFormatter(BaseFormatter):
@@ -69,6 +70,10 @@ class TemplateFormatter(BaseFormatter):
         self.env.filters["humanize_date"] = self._humanize_date
         self.env.filters["format_tool_use"] = self._format_tool_use
         self.env.filters["basename"] = lambda path: Path(path).name if path else ""
+        self.env.filters["format_text_html"] = self._format_text_content
+        self.env.filters["get_text_content"] = lambda msg: msg.get_text_content() if hasattr(msg, 'get_text_content') else ""
+        self.env.filters["is_user_message"] = lambda msg: msg.is_user_message() if hasattr(msg, 'is_user_message') else False
+        self.env.filters["is_assistant_message"] = lambda msg: msg.is_assistant_message() if hasattr(msg, 'is_assistant_message') else False
 
         # Load the template
         try:
@@ -76,19 +81,27 @@ class TemplateFormatter(BaseFormatter):
         except Exception as e:
             raise ValueError(f"Could not load template '{self.template_name}': {e}")
 
-    def format_conversation(self, messages: list[dict[str, Any]], conversation_info: dict[str, Any]) -> str:
+    def format_conversation(self, messages: list[TranscriptEntry], conversation_info: dict[str, Any]) -> str:
         """Format a single conversation using the template."""
         # Collect tool results
         self._collect_tool_results(messages)
 
-        # Prepare template data for a single conversation
+        # Group messages for easier template rendering
+        grouped_messages = self._group_messages(messages)
+
+        # Pass TranscriptEntry objects directly to template
         template_data = {
-            "conversation": {"info": conversation_info, "messages": self._prepare_messages(messages)},
+            "conversation": {
+                "info": conversation_info, 
+                "messages": messages,  # Raw TranscriptEntry objects
+                "grouped_messages": grouped_messages  # Grouped by role
+            },
             "metadata": {
                 "title": "Claude Conversation",
                 "generated_at": datetime.now().isoformat(),
                 "single_conversation": True,
             },
+            "tool_results": self._tool_results,  # Pass tool results mapping
         }
 
         return self.template.render(template_data)
@@ -98,13 +111,24 @@ class TemplateFormatter(BaseFormatter):
 
         This method is designed to be called from the CLI for multi-conversation rendering.
         """
-        # Prepare all conversations
+        # Collect tool results for all conversations
+        all_tool_results = {}
         prepared_conversations = []
+        
         for conv in conversations:
             self._collect_tool_results(conv["messages"])
-            prepared_conversations.append({"info": conv["info"], "messages": self._prepare_messages(conv["messages"])})
+            all_tool_results.update(self._tool_results)
+            
+            # Group messages for this conversation
+            grouped_messages = self._group_messages(conv["messages"])
+            
+            prepared_conversations.append({
+                "info": conv["info"], 
+                "messages": conv["messages"],  # Raw TranscriptEntry objects
+                "grouped_messages": grouped_messages  # Grouped by role
+            })
 
-        # Prepare template data for multiple conversations
+        # Pass TranscriptEntry objects directly to template
         template_data = {
             "conversations": prepared_conversations,
             "metadata": {
@@ -114,78 +138,11 @@ class TemplateFormatter(BaseFormatter):
                 "has_multiple_conversations": len(prepared_conversations) > 1,
                 "single_conversation": False,
             },
+            "tool_results": all_tool_results,  # Pass all tool results
         }
 
         return self.template.render(template_data)
 
-    def _prepare_messages(self, messages: list[dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Prepare messages for template rendering."""
-        # Group messages by role continuity
-        grouped_messages = self._group_messages(messages)
-
-        prepared_groups = []
-
-        for i, group in enumerate(grouped_messages):
-            if not group:
-                continue
-
-            # Get role from first message
-            first_msg = group[0]
-            message_data = first_msg.get("message", {})
-            role = message_data.get("role", "unknown")
-
-            # Prepare message content
-            content_parts = []
-            tool_uses = []
-
-            for msg in group:
-                msg_data = msg.get("message", {})
-                content = msg_data.get("content", "")
-
-                if isinstance(content, str):
-                    if content.strip():
-                        content_parts.append(
-                            {"type": "text", "text": content, "html": self._format_text_content(content)}
-                        )
-                elif isinstance(content, list):
-                    for item in content:
-                        if isinstance(item, dict):
-                            if item.get("type") == "text":
-                                text_content = item.get("text", "")
-                                if text_content.strip():
-                                    content_parts.append(
-                                        {
-                                            "type": "text",
-                                            "text": text_content,
-                                            "html": self._format_text_content(text_content),
-                                        }
-                                    )
-                            elif item.get("type") == "tool_use":
-                                tool_uses.append(
-                                    {
-                                        "name": item.get("name", "Unknown Tool"),
-                                        "input": item.get("input", {}),
-                                        "id": item.get("id"),
-                                        "result": self._tool_results.get(msg.get("uuid", "")),
-                                    }
-                                )
-
-            # Create message group
-            prepared_group = {
-                "role": role,
-                "role_icon": "👤" if role == "user" else "🤖" if role == "assistant" else "⚙️",
-                "role_name": role.title(),
-                "timestamp": group[0].get("timestamp"),
-                "message_number": i + 1,
-                "content_parts": content_parts,
-                "tool_uses": tool_uses,
-                "has_content": len(content_parts) > 0,
-                "has_tools": len(tool_uses) > 0,
-            }
-
-            prepared_groups.append(prepared_group)
-
-        return prepared_groups
 
     def _format_text_content(self, content: str) -> str:
         """Format text content as HTML."""
@@ -256,7 +213,7 @@ class TemplateFormatter(BaseFormatter):
             elif total_seconds < 86400:  # Less than 1 day
                 hours = int(total_seconds / 3600)
                 minutes = int((total_seconds % 3600) / 60)
-                
+
                 if hours == 1:
                     if minutes < 30:
                         return "1 hour ago"
@@ -310,21 +267,44 @@ class TemplateFormatter(BaseFormatter):
             # Fallback for unparseable dates
             return timestamp_str
 
-    def _format_tool_use(self, tool_use: dict) -> str:
-        """Jinja2 filter to format tool usage using full HTML formatters."""
-        from claude_notes.formatters.html import HTML_TOOL_FORMATTERS
+    def _format_tool_use(self, tool_use) -> str:
+        """Jinja2 filter to format tool usage."""
+        import html
+        from pathlib import Path
 
-        tool_name = tool_use.get("name", "Unknown Tool")
-        tool_input = tool_use.get("input", {})
-        tool_result = tool_use.get("result")
-
-        # Use the same formatters as the HTML formatter
-        formatter = HTML_TOOL_FORMATTERS.get(tool_name)
-        if formatter:
-            return formatter.format({"input": tool_input}, tool_result)
+        # Handle both dict and Pydantic objects
+        if hasattr(tool_use, 'name'):
+            # Pydantic object
+            tool_name = tool_use.name if hasattr(tool_use, 'name') else "Unknown Tool"
+            tool_input = tool_use.input if hasattr(tool_use, 'input') else {}
+            tool_result = None  # Result comes separately in templates
         else:
-            # Fallback for unknown tools
-            return f'<div class="tool-use unknown-tool"><span class="tool-icon">🔧</span> <strong>{html.escape(tool_name)}</strong></div>'
+            # Dictionary
+            tool_name = tool_use.get("name", "Unknown Tool")
+            tool_input = tool_use.get("input", {})
+            tool_result = tool_use.get("result")
+
+        # Simple HTML formatting for tools
+        output = f'<div class="tool-use"><strong>🔧 {html.escape(tool_name)}</strong>'
+        
+        # Format specific tools specially
+        if tool_name == "Bash" and isinstance(tool_input, dict):
+            command = tool_input.get("command", "")
+            output += f'<pre>$ {html.escape(command)}</pre>'
+        elif tool_name == "Read" and isinstance(tool_input, dict):
+            file_path = tool_input.get("file_path", "")
+            output += f'<div>📄 {html.escape(Path(file_path).name)}</div>'
+        elif tool_name == "Edit" and isinstance(tool_input, dict):
+            file_path = tool_input.get("file_path", "")
+            output += f'<div>✏️ Editing {html.escape(Path(file_path).name)}</div>'
+        else:
+            # Fallback for other tools
+            output += f'<div>{html.escape(tool_name)}</div>'
+            
+        if tool_result:
+            output += f'<div class="tool-result">{html.escape(str(tool_result)[:500])}</div>'
+        output += "</div>"
+        return output
 
     def format_tool_use(self, tool_name: str, tool_use: dict[str, Any], tool_result: str | None = None) -> str:
         """Format a tool use with its result (required by BaseFormatter)."""

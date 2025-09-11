@@ -86,25 +86,37 @@
                 {% endif %}
             </div>
 
-            {% for message in conversation.messages %}
-            <div class="message {{ message.role }}">
-                <div class="message-header">
-                    {{ message.role_icon }} {{ message.role_name }}
-                    {% if message.timestamp %}
-                    <span class="timestamp">({{ message.timestamp | humanize_date }})</span>
+            {% for group in conversation.grouped_messages %}
+                {% for msg in group %}
+                    {% if msg.is_user_message() or msg.is_assistant_message() %}
+                    {% set role = msg.message.role if msg.message else "unknown" %}
+                    <div class="message {{ role }}">
+                        <div class="message-header">
+                            {% if role == "user" %}👤{% elif role == "assistant" %}🤖{% else %}⚙️{% endif %} {{ role|title }}
+                            {% if msg.timestamp %}
+                            <span class="timestamp">({{ msg.timestamp | humanize_date }})</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="message-content">
+                            {% set text_content = msg.get_text_content() %}
+                            {% if text_content %}
+                                <div>{{ text_content | format_text_html | safe }}</div>
+                            {% endif %}
+
+                            {% if msg.message and msg.message.content %}
+                                {% if msg.message.content is iterable and msg.message.content is not string %}
+                                    {% for item in msg.message.content %}
+                                        {% if item.type == "tool_use" %}
+                                            <div class="tool-use">🔧 {{ item.name }}</div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
                     {% endif %}
-                </div>
-
-                <div class="message-content">
-                    {% for content in message.content_parts %}
-                    <div>{{ content.html | safe }}</div>
-                    {% endfor %}
-
-                    {% for tool in message.tool_uses %}
-                    <div class="tool-use">🔧 {{ tool.name }}</div>
-                    {% endfor %}
-                </div>
-            </div>
+                {% endfor %}
             {% endfor %}
         </div>
         
@@ -120,25 +132,37 @@
             </div>
             {% endif %}
 
-            {% for message in conversation.messages %}
-            <div class="message {{ message.role }}">
-                <div class="message-header">
-                    {{ message.role_icon }} {{ message.role_name }}
-                    {% if message.timestamp %}
-                    <span class="timestamp">({{ message.timestamp | humanize_date }})</span>
+            {% for group in conversation.grouped_messages %}
+                {% for msg in group %}
+                    {% if msg.is_user_message() or msg.is_assistant_message() %}
+                    {% set role = msg.message.role if msg.message else "unknown" %}
+                    <div class="message {{ role }}">
+                        <div class="message-header">
+                            {% if role == "user" %}👤{% elif role == "assistant" %}🤖{% else %}⚙️{% endif %} {{ role|title }}
+                            {% if msg.timestamp %}
+                            <span class="timestamp">({{ msg.timestamp | humanize_date }})</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="message-content">
+                            {% set text_content = msg.get_text_content() %}
+                            {% if text_content %}
+                                <div>{{ text_content | format_text_html | safe }}</div>
+                            {% endif %}
+
+                            {% if msg.message and msg.message.content %}
+                                {% if msg.message.content is iterable and msg.message.content is not string %}
+                                    {% for item in msg.message.content %}
+                                        {% if item.type == "tool_use" %}
+                                            <div class="tool-use">🔧 {{ item.name }}</div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
                     {% endif %}
-                </div>
-
-                <div class="message-content">
-                    {% for content in message.content_parts %}
-                    <div>{{ content.html | safe }}</div>
-                    {% endfor %}
-
-                    {% for tool in message.tool_uses %}
-                    <div class="tool-use">🔧 {{ tool.name }}</div>
-                    {% endfor %}
-                </div>
-            </div>
+                {% endfor %}
             {% endfor %}
         </div>
         {% endif %}

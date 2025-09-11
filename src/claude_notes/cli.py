@@ -282,7 +282,7 @@ def show(
 
     # Get all CLI arguments
     cli_args = ctx.params.copy()
-    
+
     # Track which arguments were explicitly provided on command line
     # In Click, we can check parameter sources to see which were explicitly set
     explicit_args = set()
@@ -299,7 +299,7 @@ def show(
         for arg_name in explicit_args:
             if arg_name not in ["path", "save_config"]:  # Exclude path and save_config itself
                 save_args[arg_name] = cli_args[arg_name]
-        
+
         ConfigManager.save_config(save_args, config_path)
         console.print(f"[green]Configuration saved to: {config_path or ConfigManager.DEFAULT_CONFIG_PATH}[/green]")
 

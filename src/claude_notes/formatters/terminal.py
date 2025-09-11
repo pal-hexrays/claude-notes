@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.markdown import Markdown
 
 from claude_notes.formatters.base import BaseFormatter
+from claude_notes.models import TranscriptEntry
 from claude_notes.formatters.tools import format_tool_use
 
 
@@ -18,14 +19,14 @@ class TerminalFormatter(BaseFormatter):
         super().__init__()
         self.console = console or Console()
 
-    def format_conversation(self, messages: list[dict[str, Any]], conversation_info: dict[str, Any]) -> str:
+    def format_conversation(self, messages: list[TranscriptEntry], conversation_info: dict[str, Any]) -> str:
         """Format and return a conversation as a string."""
         # Note: For terminal formatter, we still need to handle the direct console output
         # This method is kept for compatibility with the base class
         # The actual display logic is in display_conversation
         return ""
 
-    def display_conversation(self, messages: list[dict[str, Any]], conversation_info: dict[str, Any]) -> None:
+    def display_conversation(self, messages: list[TranscriptEntry], conversation_info: dict[str, Any]) -> None:
         """Format and display a conversation to the console."""
         # Display conversation header
         self._display_header(conversation_info)
@@ -49,15 +50,15 @@ class TerminalFormatter(BaseFormatter):
         # Don't display any header - just start with the conversation content
         pass
 
-    def _display_message_group(self, messages: list[dict[str, Any]]) -> None:
+    def _display_message_group(self, messages: list[TranscriptEntry]) -> None:
         """Display a group of messages from the same role."""
         if not messages:
             return
 
         # Get the role from the first message
         first_msg = messages[0]
-        message_data = first_msg.get("message", {})
-        role = message_data.get("role", "unknown")
+        message_data = first_msg.message
+        role = message_data.role if message_data else "unknown"
 
         # Process each message separately but display as one group
         message_parts = []
@@ -66,13 +67,13 @@ class TerminalFormatter(BaseFormatter):
             msg_content = []
 
             # Handle tool results that are stored at the message level
-            if msg.get("type") == "tool_result":
+            if msg.type == "tool_result":
                 # Tool results are already handled by the tool formatter
                 # Skip them here to avoid duplication
                 continue
 
-            message_data = msg.get("message", {})
-            content = message_data.get("content", "")
+            message_data = msg.message
+            content = message_data.content if message_data else ""
 
             if isinstance(content, str):
                 msg_content.append(content)
@@ -176,7 +177,7 @@ class TerminalFormatter(BaseFormatter):
     def _format_text_content(self, content: str) -> str:
         return "\n[bold white]⏺[/bold white] " + content.strip() if content.strip() else ""
 
-    def _format_tool_use(self, tool_use: dict[str, Any], msg: dict[str, Any]) -> str:
+    def _format_tool_use(self, tool_use: dict[str, Any], msg: TranscriptEntry) -> str:
         """Format a tool use block with its result."""
         tool_name = tool_use.get("name", "Unknown Tool")
         tool_id = tool_use.get("id")
@@ -185,7 +186,7 @@ class TerminalFormatter(BaseFormatter):
         tool_result = None
         if tool_id:
             # First check if there's a result mapped by the message UUID
-            msg_uuid = msg.get("uuid")
+            msg_uuid = msg.uuid
             if msg_uuid and msg_uuid in self._tool_results:
                 tool_result = self._tool_results[msg_uuid]
             # Also check by tool use ID (some formats might use this)

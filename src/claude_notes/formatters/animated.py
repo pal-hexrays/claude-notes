@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from claude_notes.formatters.base import BaseFormatter
+from claude_notes.models import TranscriptEntry
 from claude_notes.formatters.tools import format_tool_use
 
 # Emoji fallback mappings for GIF export (since emoji don't render well in many terminal fonts)
@@ -101,7 +102,7 @@ class AnimatedFormatter(BaseFormatter):
         if not shutil.which("agg"):
             raise RuntimeError("agg is required for GIF conversion. Install from: https://github.com/asciinema/agg")
 
-    def format_conversation(self, messages: list[dict[str, Any]], conversation_info: dict[str, Any]) -> str:
+    def format_conversation(self, messages: list[TranscriptEntry], conversation_info: dict[str, Any]) -> str:
         """Format and return conversation as an asciicast file path.
 
         Returns:
@@ -355,7 +356,7 @@ class AnimatedFormatter(BaseFormatter):
         # Return a result object similar to subprocess.run
         return subprocess.CompletedProcess(progress_cmd, process.returncode, stdout, stderr)
 
-    def _generate_asciicast(self, messages: list[dict[str, Any]], conversation_info: dict[str, Any]) -> list[dict]:
+    def _generate_asciicast(self, messages: list[TranscriptEntry], conversation_info: dict[str, Any]) -> list[dict]:
         """Generate asciicast events from conversation messages."""
         events = []
         current_time = 0.0
@@ -400,7 +401,7 @@ class AnimatedFormatter(BaseFormatter):
 
         return events
 
-    def _add_message_group_events(self, events: list, messages: list[dict[str, Any]], start_time: float) -> float:
+    def _add_message_group_events(self, events: list, messages: list[TranscriptEntry], start_time: float) -> float:
         """Add events for a message group and return updated time."""
         if not messages:
             return start_time
@@ -409,8 +410,8 @@ class AnimatedFormatter(BaseFormatter):
 
         # Get the role from the first message
         first_msg = messages[0]
-        message_data = first_msg.get("message", {})
-        role = message_data.get("role", "unknown")
+        message_data = first_msg.message
+        role = message_data.role if message_data else "unknown"
 
         # Add marker for user messages to delimit where user starts typing
         if role == "user":
@@ -422,12 +423,12 @@ class AnimatedFormatter(BaseFormatter):
 
         for msg in messages:
             # Skip tool results (handled inline)
-            if msg.get("type") == "tool_result":
+            if msg.type == "tool_result":
                 continue
 
             msg_content = []
-            message_data = msg.get("message", {})
-            content = message_data.get("content", "")
+            message_data = msg.message
+            content = message_data.content if message_data else ""
 
             if isinstance(content, str):
                 # Parse special tags for user messages
@@ -529,7 +530,7 @@ class AnimatedFormatter(BaseFormatter):
 
         return current_time
 
-    def _format_tool_use_for_animation(self, tool_use: dict[str, Any], msg: dict[str, Any]) -> str:
+    def _format_tool_use_for_animation(self, tool_use: dict[str, Any], msg: TranscriptEntry) -> str:
         """Format a tool use for animation display."""
         tool_name = tool_use.get("name", "Unknown Tool")
         tool_id = tool_use.get("id")
@@ -537,7 +538,7 @@ class AnimatedFormatter(BaseFormatter):
         # Find the tool result
         tool_result = None
         if tool_id:
-            msg_uuid = msg.get("uuid")
+            msg_uuid = msg.uuid
             if msg_uuid and msg_uuid in self._tool_results:
                 tool_result = self._tool_results[msg_uuid]
             elif tool_id in self._tool_results:

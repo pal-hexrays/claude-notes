@@ -57,7 +57,9 @@ class ConfigManager:
             json.dump(filtered_settings, f, indent=2)
 
     @staticmethod
-    def merge_configs(file_config: Dict[str, Any], cli_args: Dict[str, Any], explicit_args: set = None) -> Dict[str, Any]:
+    def merge_configs(
+        file_config: Dict[str, Any], cli_args: Dict[str, Any], explicit_args: set = None
+    ) -> Dict[str, Any]:
         """Merge configuration from file with CLI arguments.
 
         CLI arguments take precedence over file configuration.

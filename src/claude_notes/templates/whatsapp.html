@@ -462,10 +462,17 @@
                         </div>
                         <div class="conversation-preview">
                             {% if conversation.messages %}
-                                {% set first_user_msg = conversation.messages | selectattr("role", "equalto", "user") | first %}
-                                {% if first_user_msg and first_user_msg.content_parts %}
-                                    {{ first_user_msg.content_parts[0].text[:50] }}{% if first_user_msg.content_parts[0].text|length > 50 %}...{% endif %}
-                                {% else %}
+                                {% set found = namespace(value=false) %}
+                                {% for msg in conversation.messages if not found.value %}
+                                    {% if msg.is_user_message() %}
+                                        {% set text = msg.get_text_content() %}
+                                        {% if text %}
+                                            {{ text[:50] }}{% if text|length > 50 %}...{% endif %}
+                                            {% set found.value = true %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                                {% if not found.value %}
                                     {{ conversation.messages|length }} messages
                                 {% endif %}
                             {% else %}
@@ -519,38 +526,55 @@
             <!-- Message containers for each conversation -->
             {% for conversation in conversations %}
             <div class="messages-container" id="messages-{{ loop.index }}" data-conv-id="{{ loop.index }}">
-                {% for message in conversation.messages %}
-                <div class="message-bubble {{ message.role }}" data-message="{{ loop.index }}">
-                    <div class="bubble-content">
-                        <div class="message-text">
-                            {% for content in message.content_parts %}
-                                {{ content.html | safe }}
-                            {% endfor %}
-                            
-                            {% for tool in message.tool_uses %}
-                            <div class="tool-use-bubble">
-                                <div class="tool-name">🔧 {{ tool.name }}</div>
-                                <div class="tool-details">
-                                    {% if tool.name == 'Bash' and tool.input.command %}
-                                        $ {{ tool.input.command }}
-                                    {% elif tool.name == 'Read' and tool.input.file_path %}
-                                        📄 {{ tool.input.file_path | basename }}
-                                    {% elif tool.name == 'Edit' and tool.input.file_path %}
-                                        ✏️ {{ tool.input.file_path | basename }}
-                                    {% else %}
-                                        {{ tool.name }} tool used
+                {% for entry in conversation.grouped_messages %}
+                    {% for msg in entry %}
+                        {% if msg.is_user_message() or msg.is_assistant_message() %}
+                        {% set role = msg.message.role if msg.message else "unknown" %}
+                        <div class="message-bubble {{ role }}" data-message="{{ loop.index }}">
+                            <div class="bubble-content">
+                                <div class="message-text">
+                                    {% set text_content = msg.get_text_content() %}
+                                    {% if text_content %}
+                                        {{ text_content | format_text_html | safe }}
+                                    {% endif %}
+                                    
+                                    {% if msg.message and msg.message.content %}
+                                        {% if msg.message.content is iterable and msg.message.content is not string %}
+                                            {% for item in msg.message.content %}
+                                                {% if item.type == "tool_use" %}
+                                                <div class="tool-use-bubble">
+                                                    <div class="tool-name">🔧 {{ item.name }}</div>
+                                                    <div class="tool-details">
+                                                        {% if item.name == 'Bash' and item.input.command %}
+                                                            $ {{ item.input.command }}
+                                                        {% elif item.name == 'Read' and item.input.file_path %}
+                                                            📄 {{ item.input.file_path | basename }}
+                                                        {% elif item.name == 'Edit' and item.input.file_path %}
+                                                            ✏️ {{ item.input.file_path | basename }}
+                                                        {% else %}
+                                                            {{ item.name }} tool used
+                                                        {% endif %}
+                                                    </div>
+                                                    {% if msg.uuid and tool_results[msg.uuid] %}
+                                                    <div class="tool-result">
+                                                        {{ tool_results[msg.uuid] | truncate(200) }}
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                                <div class="message-time">
+                                    {% if msg.timestamp %}
+                                        {{ msg.timestamp | humanize_date }}
                                     {% endif %}
                                 </div>
                             </div>
-                            {% endfor %}
                         </div>
-                        <div class="message-time">
-                            {% if message.timestamp %}
-                                {{ message.timestamp | humanize_date }}
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
+                        {% endif %}
+                    {% endfor %}
                 {% endfor %}
             </div>
             {% endfor %}
@@ -572,14 +596,26 @@
             title: '{{ conversation.info.title }}',
             timestamp: '{{ conversation.info.start_time | default("") }}',
             messages: [
-                {% for message in conversation.messages %}
+                {% for msg in conversation.messages %}
+                {% if msg.is_user_message() or msg.is_assistant_message() %}
                 {
                     id: {{ loop.index }},
-                    role: '{{ message.role }}',
-                    content: `{% for content in message.content_parts %}{{ content.text | replace('\n', '\\n') | replace('`', '\\`') | replace('$', '\\$') }}{% endfor %}`,
-                    timestamp: '{{ message.timestamp | default("") }}',
-                    tools: [{% for tool in message.tool_uses %}'{{ tool.name }}'{% if not loop.last %},{% endif %}{% endfor %}]
+                    role: '{{ msg.message.role if msg.message else "unknown" }}',
+                    content: `{{ msg.get_text_content() | default("") | replace('\n', '\\n') | replace('`', '\\`') | replace('$', '\\$') }}`,
+                    timestamp: '{{ msg.timestamp | default("") }}',
+                    tools: [
+                        {% if msg.message and msg.message.content %}
+                            {% if msg.message.content is iterable and msg.message.content is not string %}
+                                {% for item in msg.message.content %}
+                                    {% if item.type == "tool_use" %}
+                                        '{{ item.name }}'{% if not loop.last %},{% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endif %}
+                    ]
                 }{% if not loop.last %},{% endif %}
+                {% endif %}
                 {% endfor %}
             ]
         });
