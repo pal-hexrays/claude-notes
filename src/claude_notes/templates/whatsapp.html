@@ -355,23 +355,89 @@
         
         .tool-use-bubble {
             margin-top: 8px;
-            padding: 8px 12px;
-            background-color: rgba(7, 94, 84, 0.1);
+            background-color: rgba(7, 94, 84, 0.05);
             border-radius: 8px;
-            border-left: 3px solid #075e54;
+            border: 1px solid rgba(7, 94, 84, 0.2);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .tool-use-bubble.expanded {
+            background-color: rgba(7, 94, 84, 0.08);
+            border-color: rgba(7, 94, 84, 0.3);
+        }
+        
+        .tool-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s ease;
+        }
+        
+        .tool-header:hover {
+            background-color: rgba(7, 94, 84, 0.08);
+        }
+        
+        .tool-header-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .tool-icon {
+            font-size: 14px;
         }
         
         .tool-name {
             font-weight: 500;
             color: #075e54;
             font-size: 12px;
-            margin-bottom: 4px;
+        }
+        
+        .tool-summary {
+            font-size: 11px;
+            color: #667781;
+            margin-left: 4px;
+        }
+        
+        .tool-expand-icon {
+            color: #667781;
+            transition: transform 0.3s ease;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .tool-use-bubble.expanded .tool-expand-icon {
+            transform: rotate(90deg);
         }
         
         .tool-details {
+            display: none;
+            padding: 8px 10px;
+            border-top: 1px solid rgba(7, 94, 84, 0.1);
             font-size: 11px;
             color: #667781;
             font-family: 'Monaco', 'Menlo', monospace;
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .tool-use-bubble.expanded .tool-details {
+            display: block;
+        }
+        
+        .tool-result {
+            margin-top: 8px;
+            padding: 6px;
+            background-color: rgba(0, 0, 0, 0.03);
+            border-radius: 4px;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
         
         /* Responsive design */
@@ -549,19 +615,21 @@
                         {% if msg.is_user_message() or msg.is_assistant_message() %}
                         {% set role = msg.message.role if msg.message else "unknown" %}
                         {% set text_content = msg.get_text_content() %}
-                        {% set has_tools = false %}
+                        {% set ns = namespace(has_tools=false) %}
                         {% if msg.message and msg.message.content %}
                             {% if msg.message.content is iterable and msg.message.content is not string %}
                                 {% for item in msg.message.content %}
-                                    {% if item.type == "tool_use" %}
-                                        {% set has_tools = true %}
+                                    {# Check for tool use by class name - most reliable #}
+                                    {% if item.__class__.__name__ == "ToolUseContent" %}
+                                        {% set ns.has_tools = true %}
                                     {% endif %}
                                 {% endfor %}
                             {% endif %}
                         {% endif %}
                         
                         {# Only render message bubble if it has text content or tool uses #}
-                        {% if text_content or has_tools %}
+                        {# Note: text_content might be None (not the string "None") #}
+                        {% if (text_content and text_content != "None") or ns.has_tools %}
                         
                         {# Add date separator when date changes #}
                         {% if msg.timestamp %}
@@ -584,25 +652,95 @@
                                     {% if msg.message and msg.message.content %}
                                         {% if msg.message.content is iterable and msg.message.content is not string %}
                                             {% for item in msg.message.content %}
-                                                {% if item.type == "tool_use" %}
-                                                <div class="tool-use-bubble">
-                                                    <div class="tool-name">🔧 {{ item.name }}</div>
+                                                {# Check for tool use by class name - most reliable #}
+                                                {% if item.__class__.__name__ == "ToolUseContent" %}
+                                                {% set tool_id = "tool-" ~ loop.index0 ~ "-" ~ msg.uuid[:8] %}
+                                                <div class="tool-use-bubble" id="{{ tool_id }}">
+                                                    <div class="tool-header" onclick="toggleTool('{{ tool_id }}')">
+                                                        <div class="tool-header-left">
+                                                            <span class="tool-icon">
+                                                                {% if item.name == 'Bash' %}💻
+                                                                {% elif item.name == 'Read' %}📖
+                                                                {% elif item.name == 'Write' %}📝
+                                                                {% elif item.name == 'Edit' or item.name == 'MultiEdit' %}✏️
+                                                                {% elif item.name == 'Grep' %}🔍
+                                                                {% elif item.name == 'Glob' %}📁
+                                                                {% elif item.name == 'TodoWrite' %}✅
+                                                                {% elif item.name == 'Task' %}🤖
+                                                                {% elif item.name == 'WebSearch' %}🌐
+                                                                {% elif item.name == 'WebFetch' %}🔗
+                                                                {% elif item.name == 'ExitPlanMode' %}📋
+                                                                {% else %}🔧{% endif %}
+                                                            </span>
+                                                            <span class="tool-name">{{ item.name }}</span>
+                                                            <span class="tool-summary">
+                                                                {% if item.name == 'Bash' and item.input.command %}
+                                                                    - {{ item.input.command | truncate(40) }}
+                                                                {% elif item.name == 'Read' and item.input.file_path %}
+                                                                    - {{ item.input.file_path | basename }}
+                                                                {% elif item.name == 'Edit' and item.input.file_path %}
+                                                                    - {{ item.input.file_path | basename }}
+                                                                {% elif item.name == 'Write' and item.input.file_path %}
+                                                                    - {{ item.input.file_path | basename }}
+                                                                {% elif item.name == 'Grep' and item.input.pattern %}
+                                                                    - "{{ item.input.pattern | truncate(20) }}"
+                                                                {% elif item.name == 'Task' and item.input.description %}
+                                                                    - {{ item.input.description }}
+                                                                {% endif %}
+                                                            </span>
+                                                        </div>
+                                                        <span class="tool-expand-icon">▶</span>
+                                                    </div>
                                                     <div class="tool-details">
                                                         {% if item.name == 'Bash' and item.input.command %}
-                                                            $ {{ item.input.command }}
+                                                            <strong>Command:</strong><br>
+                                                            <code>$ {{ item.input.command }}</code>
                                                         {% elif item.name == 'Read' and item.input.file_path %}
-                                                            📄 {{ item.input.file_path | basename }}
+                                                            <strong>File:</strong> {{ item.input.file_path }}<br>
+                                                            {% if item.input.limit %}
+                                                                <strong>Lines:</strong> {{ item.input.limit }}
+                                                            {% endif %}
                                                         {% elif item.name == 'Edit' and item.input.file_path %}
-                                                            ✏️ {{ item.input.file_path | basename }}
+                                                            <strong>File:</strong> {{ item.input.file_path }}<br>
+                                                            <strong>Changes:</strong> Editing content
+                                                        {% elif item.name == 'Write' and item.input.file_path %}
+                                                            <strong>File:</strong> {{ item.input.file_path }}<br>
+                                                            <strong>Action:</strong> Writing new content
+                                                        {% elif item.name == 'MultiEdit' and item.input.file_path %}
+                                                            <strong>File:</strong> {{ item.input.file_path }}<br>
+                                                            <strong>Edits:</strong> {{ item.input.edits | length }} changes
+                                                        {% elif item.name == 'Grep' %}
+                                                            <strong>Pattern:</strong> {{ item.input.pattern }}<br>
+                                                            {% if item.input.path %}
+                                                                <strong>Path:</strong> {{ item.input.path }}
+                                                            {% endif %}
+                                                        {% elif item.name == 'Glob' %}
+                                                            <strong>Pattern:</strong> {{ item.input.pattern }}<br>
+                                                            {% if item.input.path %}
+                                                                <strong>Path:</strong> {{ item.input.path }}
+                                                            {% endif %}
+                                                        {% elif item.name == 'TodoWrite' and item.input.todos %}
+                                                            <strong>Todos:</strong> {{ item.input.todos | length }} items
+                                                        {% elif item.name == 'Task' %}
+                                                            <strong>Type:</strong> {{ item.input.subagent_type }}<br>
+                                                            <strong>Description:</strong> {{ item.input.description }}
+                                                        {% elif item.name == 'WebSearch' %}
+                                                            <strong>Query:</strong> {{ item.input.query }}
+                                                        {% elif item.name == 'WebFetch' %}
+                                                            <strong>URL:</strong> {{ item.input.url | truncate(50) }}
+                                                        {% elif item.name == 'ExitPlanMode' %}
+                                                            <strong>Planning completed</strong>
                                                         {% else %}
-                                                            {{ item.name }} tool used
+                                                            {{ item.name }} tool executed
+                                                        {% endif %}
+                                                        
+                                                        {% if msg.uuid and tool_results[msg.uuid] %}
+                                                        <div class="tool-result">
+                                                            <strong>Result:</strong><br>
+                                                            {{ tool_results[msg.uuid] | truncate(300) }}
+                                                        </div>
                                                         {% endif %}
                                                     </div>
-                                                    {% if msg.uuid and tool_results[msg.uuid] %}
-                                                    <div class="tool-result">
-                                                        {{ tool_results[msg.uuid] | truncate(200) }}
-                                                    </div>
-                                                    {% endif %}
                                                 </div>
                                                 {% endif %}
                                             {% endfor %}
@@ -669,6 +807,13 @@
         allConversations.forEach(conv => {
             allMessages[conv.id] = conv.messages;
         });
+        
+        function toggleTool(toolId) {
+            const toolBubble = document.getElementById(toolId);
+            if (toolBubble) {
+                toolBubble.classList.toggle('expanded');
+            }
+        }
         
         function selectConversation(convId) {
             // Remove active class from all conversation items
