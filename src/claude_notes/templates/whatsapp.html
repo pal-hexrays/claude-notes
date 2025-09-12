@@ -353,6 +353,93 @@
             font-style: italic;
         }
         
+        /* Service messages (WhatsApp style system messages) */
+        .service-message {
+            text-align: center;
+            margin: 15px 0;
+            width: 100%;
+        }
+        
+        .service-message-content {
+            display: inline-block;
+            background-color: rgba(255, 255, 255, 0.92);
+            color: #667781;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 12px;
+            box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+        }
+        
+        .service-icon {
+            margin-right: 4px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        /* Bash notification style */
+        .bash-notification {
+            text-align: center;
+            margin: 10px 0;
+            width: 100%;
+        }
+        
+        .bash-notification-container {
+            display: inline-block;
+            background-color: rgba(255, 255, 255, 0.92);
+            border-radius: 7px;
+            box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+            padding: 8px;
+            width: 60%;
+            min-width: 300px;
+            max-width: 600px;
+        }
+        
+        .bash-header {
+            color: #667781;
+            font-size: 12px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .bash-icon {
+            margin-right: 6px;
+            font-size: 13px;
+        }
+        
+        .bash-command-box {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 8px 10px;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 11px;
+            text-align: left;
+            white-space: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            border-radius: 4px;
+            scrollbar-width: thin;
+            scrollbar-color: #555 #1e1e1e;
+        }
+        
+        .bash-command-box::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        .bash-command-box::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        
+        .bash-command-box::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 3px;
+        }
+        
+        .bash-command-box::-webkit-scrollbar-thumb:hover {
+            background: #777;
+        }
+        
         .tool-use-bubble {
             margin-top: 8px;
             background-color: rgba(7, 94, 84, 0.05);
@@ -438,6 +525,84 @@
             overflow-y: auto;
             white-space: pre-wrap;
             word-break: break-word;
+        }
+        
+        /* Tool-specific styles */
+        .todo-list {
+            list-style: none;
+            padding: 0;
+            margin: 4px 0;
+        }
+        
+        .todo-item {
+            padding: 4px 8px;
+            margin: 2px 0;
+            border-radius: 4px;
+            background-color: rgba(255, 255, 255, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+        
+        .todo-status {
+            font-size: 14px;
+            min-width: 20px;
+        }
+        
+        .todo-item.completed {
+            opacity: 0.7;
+            text-decoration: line-through;
+        }
+        
+        .code-change {
+            margin: 8px 0;
+            padding: 8px;
+            background-color: rgba(0, 0, 0, 0.02);
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 11px;
+        }
+        
+        .code-old {
+            background-color: rgba(255, 0, 0, 0.1);
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+        
+        .code-new {
+            background-color: rgba(0, 255, 0, 0.1);
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+        
+        .tool-param {
+            margin: 4px 0;
+            font-size: 11px;
+        }
+        
+        .tool-param-name {
+            font-weight: 600;
+            color: #075e54;
+        }
+        
+        .tool-file-path {
+            font-family: 'Monaco', 'Menlo', monospace;
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            word-break: break-all;
+        }
+        
+        .tool-command {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 11px;
+            overflow-x: auto;
         }
         
         /* Responsive design */
@@ -615,21 +780,19 @@
                         {% if msg.is_user_message() or msg.is_assistant_message() %}
                         {% set role = msg.message.role if msg.message else "unknown" %}
                         {% set text_content = msg.get_text_content() %}
-                        {% set ns = namespace(has_tools=false) %}
+                        {% set ns = namespace(has_other_tools=false) %}
                         {% if msg.message and msg.message.content %}
                             {% if msg.message.content is iterable and msg.message.content is not string %}
                                 {% for item in msg.message.content %}
-                                    {# Check for tool use by class name - most reliable #}
-                                    {% if item.__class__.__name__ == "ToolUseContent" %}
-                                        {% set ns.has_tools = true %}
+                                    {% if item.__class__.__name__ == "ToolUseContent" and item.name != 'Read' and item.name != 'Write' and item.name != 'Bash' %}
+                                        {% set ns.has_other_tools = true %}
                                     {% endif %}
                                 {% endfor %}
                             {% endif %}
                         {% endif %}
                         
-                        {# Only render message bubble if it has text content or tool uses #}
-                        {# Note: text_content might be None (not the string "None") #}
-                        {% if (text_content and text_content != "None") or ns.has_tools %}
+                        {# Render message bubble if it has text content or non-service tools #}
+                        {% if (text_content and text_content != "None") or ns.has_other_tools %}
                         
                         {# Add date separator when date changes #}
                         {% if msg.timestamp %}
@@ -655,14 +818,14 @@
                                                 {# Check for tool use by class name - most reliable #}
                                                 {% if item.__class__.__name__ == "ToolUseContent" %}
                                                 {% set tool_id = "tool-" ~ loop.index0 ~ "-" ~ msg.uuid[:8] %}
-                                                <div class="tool-use-bubble" id="{{ tool_id }}">
+                                                
+                                                {# Skip Read, Write, and Bash tools here - they're rendered as service messages #}
+                                                {% if item.name != 'Read' and item.name != 'Write' and item.name != 'Bash' %}
+                                                <div class="tool-use-bubble{% if item.name == 'TodoWrite' %} expanded{% endif %}" id="{{ tool_id }}">
                                                     <div class="tool-header" onclick="toggleTool('{{ tool_id }}')">
                                                         <div class="tool-header-left">
                                                             <span class="tool-icon">
-                                                                {% if item.name == 'Bash' %}💻
-                                                                {% elif item.name == 'Read' %}📖
-                                                                {% elif item.name == 'Write' %}📝
-                                                                {% elif item.name == 'Edit' or item.name == 'MultiEdit' %}✏️
+                                                                {% if item.name == 'Edit' or item.name == 'MultiEdit' %}✏️
                                                                 {% elif item.name == 'Grep' %}🔍
                                                                 {% elif item.name == 'Glob' %}📁
                                                                 {% elif item.name == 'TodoWrite' %}✅
@@ -674,64 +837,245 @@
                                                             </span>
                                                             <span class="tool-name">{{ item.name }}</span>
                                                             <span class="tool-summary">
-                                                                {% if item.name == 'Bash' and item.input.command %}
-                                                                    - {{ item.input.command | truncate(40) }}
-                                                                {% elif item.name == 'Read' and item.input.file_path %}
-                                                                    - {{ item.input.file_path | basename }}
-                                                                {% elif item.name == 'Edit' and item.input.file_path %}
-                                                                    - {{ item.input.file_path | basename }}
-                                                                {% elif item.name == 'Write' and item.input.file_path %}
+                                                                {% if item.name == 'Edit' and item.input.file_path %}
                                                                     - {{ item.input.file_path | basename }}
                                                                 {% elif item.name == 'Grep' and item.input.pattern %}
                                                                     - "{{ item.input.pattern | truncate(20) }}"
                                                                 {% elif item.name == 'Task' and item.input.description %}
                                                                     - {{ item.input.description }}
+                                                                {% elif item.name == 'TodoWrite' and item.input.todos %}
+                                                                    - {{ item.input.todos | length }} todos
+                                                                {% elif item.name == 'ExitPlanMode' and item.input.plan %}
+                                                                    - Planning complete
                                                                 {% endif %}
                                                             </span>
                                                         </div>
                                                         <span class="tool-expand-icon">▶</span>
                                                     </div>
                                                     <div class="tool-details">
-                                                        {% if item.name == 'Bash' and item.input.command %}
-                                                            <strong>Command:</strong><br>
-                                                            <code>$ {{ item.input.command }}</code>
-                                                        {% elif item.name == 'Read' and item.input.file_path %}
-                                                            <strong>File:</strong> {{ item.input.file_path }}<br>
+                                                        {% if item.name == 'TodoWrite' %}
+                                                            {# TodoWrite: Show actual todo list #}
+                                                            {% if item.input.todos %}
+                                                                <ul class="todo-list">
+                                                                {% for todo in item.input.todos %}
+                                                                    <li class="todo-item {% if todo.status == 'completed' %}completed{% endif %}">
+                                                                        <span class="todo-status">
+                                                                            {% if todo.status == 'completed' %}✅
+                                                                            {% elif todo.status == 'in_progress' %}⏳
+                                                                            {% else %}⏸️{% endif %}
+                                                                        </span>
+                                                                        <span class="todo-content">{{ todo.content }}</span>
+                                                                    </li>
+                                                                {% endfor %}
+                                                                </ul>
+                                                            {% else %}
+                                                                <em>No todos provided</em>
+                                                            {% endif %}
+                                                            
+                                                        {% elif item.name == 'Bash' %}
+                                                            {# Bash: Enhanced command display #}
+                                                            {% if item.input.command %}
+                                                                <div class="tool-command">$ {{ item.input.command }}</div>
+                                                            {% endif %}
+                                                            {% if item.input.description %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Description:</span> {{ item.input.description }}
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if item.input.timeout %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Timeout:</span> {{ item.input.timeout }}ms
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if item.input.run_in_background %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Background:</span> Yes
+                                                                </div>
+                                                            {% endif %}
+                                                            
+                                                        {% elif item.name == 'Edit' %}
+                                                            {# Edit: Show changes #}
+                                                            <div class="tool-param">
+                                                                <span class="tool-param-name">File:</span> 
+                                                                <span class="tool-file-path">{{ item.input.file_path }}</span>
+                                                            </div>
+                                                            {% if item.input.old_string %}
+                                                                <div class="code-change">
+                                                                    <div class="code-old">- {{ item.input.old_string | truncate(100) }}</div>
+                                                                    <div class="code-new">+ {{ item.input.new_string | truncate(100) }}</div>
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if item.input.replace_all %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Replace All:</span> Yes
+                                                                </div>
+                                                            {% endif %}
+                                                            
+                                                        {% elif item.name == 'MultiEdit' %}
+                                                            {# MultiEdit: Show multiple edits #}
+                                                            <div class="tool-param">
+                                                                <span class="tool-param-name">File:</span> 
+                                                                <span class="tool-file-path">{{ item.input.file_path }}</span>
+                                                            </div>
+                                                            {% if item.input.edits %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Changes:</span> {{ item.input.edits | length }} edits
+                                                                </div>
+                                                                {% for edit in item.input.edits[:3] %}
+                                                                    <div class="code-change">
+                                                                        <div class="code-old">- {{ edit.old_string | truncate(60) }}</div>
+                                                                        <div class="code-new">+ {{ edit.new_string | truncate(60) }}</div>
+                                                                    </div>
+                                                                {% endfor %}
+                                                                {% if item.input.edits | length > 3 %}
+                                                                    <em>... and {{ item.input.edits | length - 3 }} more edits</em>
+                                                                {% endif %}
+                                                            {% endif %}
+                                                            
+                                                        {% elif item.name == 'Read' %}
+                                                            {# Read: File reading details #}
+                                                            <div class="tool-param">
+                                                                <span class="tool-param-name">File:</span> 
+                                                                <span class="tool-file-path">{{ item.input.file_path }}</span>
+                                                            </div>
+                                                            {% if item.input.offset %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Starting at line:</span> {{ item.input.offset }}
+                                                                </div>
+                                                            {% endif %}
                                                             {% if item.input.limit %}
-                                                                <strong>Lines:</strong> {{ item.input.limit }}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Lines to read:</span> {{ item.input.limit }}
+                                                                </div>
                                                             {% endif %}
-                                                        {% elif item.name == 'Edit' and item.input.file_path %}
-                                                            <strong>File:</strong> {{ item.input.file_path }}<br>
-                                                            <strong>Changes:</strong> Editing content
-                                                        {% elif item.name == 'Write' and item.input.file_path %}
-                                                            <strong>File:</strong> {{ item.input.file_path }}<br>
-                                                            <strong>Action:</strong> Writing new content
-                                                        {% elif item.name == 'MultiEdit' and item.input.file_path %}
-                                                            <strong>File:</strong> {{ item.input.file_path }}<br>
-                                                            <strong>Edits:</strong> {{ item.input.edits | length }} changes
+                                                            
+                                                        {% elif item.name == 'Write' %}
+                                                            {# Write: File writing details #}
+                                                            <div class="tool-param">
+                                                                <span class="tool-param-name">File:</span> 
+                                                                <span class="tool-file-path">{{ item.input.file_path }}</span>
+                                                            </div>
+                                                            {% if item.input.content %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Content preview:</span>
+                                                                    <div class="code-change">{{ item.input.content | truncate(200) }}</div>
+                                                                </div>
+                                                            {% endif %}
+                                                            
                                                         {% elif item.name == 'Grep' %}
-                                                            <strong>Pattern:</strong> {{ item.input.pattern }}<br>
+                                                            {# Grep: Search details #}
+                                                            <div class="tool-param">
+                                                                <span class="tool-param-name">Pattern:</span> 
+                                                                <code>{{ item.input.pattern }}</code>
+                                                            </div>
                                                             {% if item.input.path %}
-                                                                <strong>Path:</strong> {{ item.input.path }}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Search in:</span> 
+                                                                    <span class="tool-file-path">{{ item.input.path }}</span>
+                                                                </div>
                                                             {% endif %}
+                                                            {% if item.input.glob %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">File pattern:</span> {{ item.input.glob }}
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if item.input.output_mode %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Output:</span> {{ item.input.output_mode }}
+                                                                </div>
+                                                            {% endif %}
+                                                            
                                                         {% elif item.name == 'Glob' %}
-                                                            <strong>Pattern:</strong> {{ item.input.pattern }}<br>
+                                                            {# Glob: File pattern search #}
+                                                            <div class="tool-param">
+                                                                <span class="tool-param-name">Pattern:</span> 
+                                                                <code>{{ item.input.pattern }}</code>
+                                                            </div>
                                                             {% if item.input.path %}
-                                                                <strong>Path:</strong> {{ item.input.path }}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Directory:</span> 
+                                                                    <span class="tool-file-path">{{ item.input.path }}</span>
+                                                                </div>
                                                             {% endif %}
-                                                        {% elif item.name == 'TodoWrite' and item.input.todos %}
-                                                            <strong>Todos:</strong> {{ item.input.todos | length }} items
+                                                            
                                                         {% elif item.name == 'Task' %}
-                                                            <strong>Type:</strong> {{ item.input.subagent_type }}<br>
-                                                            <strong>Description:</strong> {{ item.input.description }}
+                                                            {# Task: Agent details #}
+                                                            <div class="tool-param">
+                                                                <span class="tool-param-name">Agent Type:</span> {{ item.input.subagent_type }}
+                                                            </div>
+                                                            {% if item.input.description %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Task:</span> {{ item.input.description }}
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if item.input.prompt %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Instructions:</span>
+                                                                    <div class="code-change">{{ item.input.prompt | truncate(200) }}</div>
+                                                                </div>
+                                                            {% endif %}
+                                                            
                                                         {% elif item.name == 'WebSearch' %}
-                                                            <strong>Query:</strong> {{ item.input.query }}
+                                                            {# WebSearch: Search query #}
+                                                            <div class="tool-param">
+                                                                <span class="tool-param-name">Query:</span> 
+                                                                <em>"{{ item.input.query }}"</em>
+                                                            </div>
+                                                            {% if item.input.allowed_domains %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Allowed domains:</span> {{ item.input.allowed_domains | join(', ') }}
+                                                                </div>
+                                                            {% endif %}
+                                                            {% if item.input.blocked_domains %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Blocked domains:</span> {{ item.input.blocked_domains | join(', ') }}
+                                                                </div>
+                                                            {% endif %}
+                                                            
                                                         {% elif item.name == 'WebFetch' %}
-                                                            <strong>URL:</strong> {{ item.input.url | truncate(50) }}
+                                                            {# WebFetch: URL details #}
+                                                            <div class="tool-param">
+                                                                <span class="tool-param-name">URL:</span> 
+                                                                <a href="{{ item.input.url }}" target="_blank" style="color: #0084ff;">{{ item.input.url | truncate(60) }}</a>
+                                                            </div>
+                                                            {% if item.input.prompt %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Analysis:</span> {{ item.input.prompt | truncate(100) }}
+                                                                </div>
+                                                            {% endif %}
+                                                            
                                                         {% elif item.name == 'ExitPlanMode' %}
-                                                            <strong>Planning completed</strong>
+                                                            {# ExitPlanMode: Planning summary #}
+                                                            {% if item.input.plan %}
+                                                                <div class="tool-param">
+                                                                    <span class="tool-param-name">Plan Summary:</span>
+                                                                    <div style="margin-top: 4px; white-space: pre-wrap;">{{ item.input.plan | truncate(300) }}</div>
+                                                                </div>
+                                                            {% else %}
+                                                                <em>Planning phase completed</em>
+                                                            {% endif %}
+                                                            
                                                         {% else %}
-                                                            {{ item.name }} tool executed
+                                                            {# Default case for unknown tools #}
+                                                            <div class="tool-param">
+                                                                <span class="tool-param-name">Tool:</span> {{ item.name }}
+                                                            </div>
+                                                            {% if item.input %}
+                                                                {% for key, value in item.input.items() %}
+                                                                    <div class="tool-param">
+                                                                        <span class="tool-param-name">{{ key }}:</span> 
+                                                                        {% if value is string %}
+                                                                            {{ value | truncate(100) }}
+                                                                        {% elif value is number %}
+                                                                            {{ value }}
+                                                                        {% elif value is iterable %}
+                                                                            [{{ value | length }} items]
+                                                                        {% else %}
+                                                                            {{ value }}
+                                                                        {% endif %}
+                                                                    </div>
+                                                                {% endfor %}
+                                                            {% endif %}
                                                         {% endif %}
                                                         
                                                         {% if msg.uuid and tool_results[msg.uuid] %}
@@ -742,6 +1086,7 @@
                                                         {% endif %}
                                                     </div>
                                                 </div>
+                                                {% endif %}
                                                 {% endif %}
                                             {% endfor %}
                                         {% endif %}
@@ -755,6 +1100,45 @@
                             </div>
                         </div>
                         {% endif %}
+                        
+                        {# Render service messages (Read/Write/Bash tools) #}
+                        {% if msg.message and msg.message.content %}
+                            {% if msg.message.content is iterable and msg.message.content is not string %}
+                                {% for item in msg.message.content %}
+                                    {% if item.__class__.__name__ == "ToolUseContent" and (item.name == 'Read' or item.name == 'Write') %}
+                                    <div class="service-message">
+                                        <div class="service-message-content">
+                                            <span class="service-icon">
+                                                {% if item.name == 'Read' %}📖{% else %}📝{% endif %}
+                                            </span>
+                                            {% if item.name == 'Read' %}
+                                                Reading {{ item.input.file_path | basename }}
+                                            {% else %}
+                                                Writing {{ item.input.file_path | basename }}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% elif item.__class__.__name__ == "ToolUseContent" and item.name == 'Bash' %}
+                                    <div class="bash-notification">
+                                        <div class="bash-notification-container">
+                                            <div class="bash-header">
+                                                <span class="bash-icon">💻</span>
+                                                {% if item.input.description %}
+                                                    {{ item.input.description }}
+                                                {% else %}
+                                                    Running command
+                                                {% endif %}
+                                            </div>
+                                            <div class="bash-command-box">
+                                                {{ item.input.command }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endif %}
+                        
                         {% endif %}
                     {% endfor %}
                 {% endfor %}

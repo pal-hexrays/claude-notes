@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `claude-notes` is a Python CLI tool that transforms Claude Code's transcript JSONL files into terminal-viewable output and HTML files. The tool is built with `uv` for fast Python package management and is designed to be runnable with `uvx` for easy distribution and usage.
 
+<always>Read the MEMORY.md file as well</always>
+
 ## Technology Stack
 
 - **Python 3.11+** - Main programming language

@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from claude_notes.config import ConfigManager
+from claude_notes.filter import FilterConfig
 from claude_notes.parser import TranscriptParser
 from claude_notes.title_generator import LLMTitleGenerator
 
@@ -200,11 +201,87 @@ def order_messages(messages: list, message_order: str) -> list:
         return list(reversed(messages))
 
 
+def filter_tool_messages(messages: list, filter_config: FilterConfig) -> list:
+    """Filter tool content from messages based on filter configuration.
+    
+    Args:
+        messages: List of transcript entries
+        filter_config: Filter configuration
+        
+    Returns:
+        List of transcript entries with filtered tool content
+    """
+    if not filter_config:
+        return messages
+    
+    filtered_messages = []
+    for msg in messages:
+        # For assistant messages, filter tool uses
+        if hasattr(msg, 'type') and msg.type == "assistant" and hasattr(msg, 'message') and msg.message:
+            message_data = msg.message
+            if hasattr(message_data, 'content') and isinstance(message_data.content, list):
+                # Filter out hidden tools from content
+                filtered_content = []
+                for item in message_data.content:
+                    # Check if it's a tool use
+                    if hasattr(item, '__class__') and item.__class__.__name__ == "ToolUseContent":
+                        if filter_config.should_show_tool(item.name):
+                            filtered_content.append(item)
+                    else:
+                        # Keep non-tool content (text, etc.)
+                        filtered_content.append(item)
+                
+                # Update the message content
+                if filtered_content or not all(
+                    hasattr(item, '__class__') and item.__class__.__name__ == "ToolUseContent" 
+                    for item in message_data.content
+                ):
+                    # Keep message if it has non-tool content or visible tools
+                    message_data.content = filtered_content
+                    filtered_messages.append(msg)
+            else:
+                filtered_messages.append(msg)
+        else:
+            filtered_messages.append(msg)
+    
+    return filtered_messages
+
+
 @cli.command()
 @click.argument("path", type=click.Path(exists=True, path_type=Path), default=".")
 @click.option("--raw", is_flag=True, help="Show raw JSON data instead of formatted view")
 @click.option("--no-pager", is_flag=True, help="Disable pager and show all content at once")
 @click.option("--summary", is_flag=True, help="Show only user messages and Claude replies, filtering out tool calls")
+@click.option(
+    "--filter-tools", 
+    type=str, 
+    help="Comma-separated list of tool names to hide. Available tools: "
+         "Read, Write, Edit, MultiEdit, Bash, BashOutput, KillBash, "
+         "Grep, Glob, LS, TodoWrite, Task, ExitPlanMode, WebSearch, WebFetch"
+)
+@click.option(
+    "--only-tools", 
+    type=str, 
+    help="Show only these tools, hide all others. Available tools: "
+         "Read, Write, Edit, MultiEdit, Bash, BashOutput, KillBash, "
+         "Grep, Glob, LS, TodoWrite, Task, ExitPlanMode, WebSearch, WebFetch"
+)
+@click.option(
+    "--filter-categories", 
+    type=str, 
+    help="Hide tool categories. Available categories: "
+         "file (Read,Write,Edit,MultiEdit), "
+         "search (Grep,Glob,LS), "
+         "command (Bash,BashOutput,KillBash), "
+         "task (TodoWrite,Task,ExitPlanMode), "
+         "web (WebSearch,WebFetch), "
+         "mcp (all mcp__ prefixed tools)"
+)
+@click.option(
+    "--filter-pattern", 
+    type=str, 
+    help="Regex pattern for tools to hide (e.g., 'mcp__.*' to hide all MCP tools)"
+)
 @click.option(
     "--format", type=click.Choice(["terminal", "animated", "template"]), default="terminal", help="Output format"
 )
@@ -256,6 +333,10 @@ def show(
     raw: bool,
     no_pager: bool,
     summary: bool,
+    filter_tools: str | None,
+    only_tools: str | None,
+    filter_categories: str | None,
+    filter_pattern: str | None,
     format: str,
     output: str | None,
     session_order: str,
@@ -392,6 +473,18 @@ def show(
         key=lambda x: x["start_time"] or x["file_mtime"] or datetime.min.replace(tzinfo=timezone.utc),
         reverse=(session_order == "desc"),
     )
+    
+    # Create filter config from CLI arguments
+    filter_config = FilterConfig(
+        filter_tools=filter_tools,
+        only_tools=only_tools,
+        filter_categories=filter_categories,
+        filter_pattern=filter_pattern
+    )
+    
+    # Apply tool filtering to all conversations
+    for conv in conversations:
+        conv["messages"] = filter_tool_messages(conv["messages"], filter_config)
 
     # Generate unique titles if requested
     if title_generator:
