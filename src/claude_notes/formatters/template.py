@@ -309,7 +309,15 @@ class TemplateFormatter(BaseFormatter):
         # Format specific tools specially
         if tool_name == "Bash" and isinstance(tool_input, dict):
             command = tool_input.get("command", "")
-            output += f'<pre>$ {html.escape(command)}</pre>'
+            # Generate unique ID for this bash command
+            import hashlib
+            tool_id = hashlib.md5(f"{tool_name}{command}{id(tool_use)}".encode()).hexdigest()[:8]
+            output += f'''<div class="bash-collapsible">
+                <button class="bash-toggle" onclick="toggleBash('{tool_id}')" aria-expanded="false">
+                    <span class="toggle-icon">▶</span> Show command
+                </button>
+                <pre id="bash-{tool_id}" class="bash-command" style="display: none;">$ {html.escape(command)}</pre>
+            </div>'''
         elif tool_name == "Read" and isinstance(tool_input, dict):
             file_path = tool_input.get("file_path", "")
             output += f'<div>📄 {html.escape(Path(file_path).name)}</div>'

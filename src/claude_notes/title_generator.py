@@ -70,8 +70,13 @@ class TitleCache:
         relevant_messages = []
         for msg in messages:
             # Handle nested message structure
-            actual_msg = msg.get("message", msg)
-            role = actual_msg.get("role")
+            # Convert Pydantic model to dict if needed
+            if hasattr(msg, 'model_dump'):
+                msg_dict = msg.model_dump()
+            else:
+                msg_dict = msg
+            actual_msg = msg_dict.get("message", msg_dict)
+            role = actual_msg.get("role") if isinstance(actual_msg, dict) else None
 
             if role in ["user", "assistant"]:
                 # Handle both content formats
@@ -188,8 +193,13 @@ class LLMTitleGenerator:
         # Only include user and assistant messages, skip tool calls
         for msg in messages:
             # Handle nested message structure
-            actual_msg = msg.get("message", msg)
-            role = actual_msg.get("role")
+            # Convert Pydantic model to dict if needed
+            if hasattr(msg, 'model_dump'):
+                msg_dict = msg.model_dump()
+            else:
+                msg_dict = msg
+            actual_msg = msg_dict.get("message", msg_dict)
+            role = actual_msg.get("role") if isinstance(actual_msg, dict) else None
 
             if role not in ["user", "assistant"]:
                 continue

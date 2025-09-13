@@ -379,7 +379,7 @@
         /* Bash notification style */
         .bash-notification {
             text-align: center;
-            margin: 10px 0;
+            margin: 15px 0;
             width: 100%;
         }
         
@@ -388,11 +388,20 @@
             background-color: rgba(255, 255, 255, 0.92);
             border-radius: 7px;
             box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
-            padding: 8px;
+            padding: 5px 12px;
+            width: auto;
+            min-width: fit-content;
+            max-width: 85%;
+            transition: all 0.2s ease;
+            color: #667781;
+        }
+        
+        .bash-notification-container.expanded {
             width: 60%;
             min-width: 300px;
             max-width: 600px;
         }
+        
         
         .bash-header {
             color: #667781;
@@ -421,6 +430,12 @@
             border-radius: 4px;
             scrollbar-width: thin;
             scrollbar-color: #555 #1e1e1e;
+            margin-top: 6px;
+            display: none;
+        }
+        
+        .bash-notification-container.expanded .bash-command-box {
+            display: block;
         }
         
         .bash-command-box::-webkit-scrollbar {
@@ -438,6 +453,37 @@
         
         .bash-command-box::-webkit-scrollbar-thumb:hover {
             background: #777;
+        }
+        
+        .bash-toggle-icon {
+            margin-left: auto;
+            font-size: 9px;
+            color: #999;
+            transition: transform 0.2s;
+            display: inline-block;
+            opacity: 0.7;
+        }
+        
+        .bash-toggle-icon.expanded {
+            transform: rotate(90deg);
+        }
+        
+        .bash-header {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            line-height: 1.4;
+            cursor: pointer;
+        }
+        
+        .bash-icon {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .bash-header:hover .bash-toggle-icon {
+            color: #333;
         }
         
         .tool-use-bubble {
@@ -1119,17 +1165,19 @@
                                         </div>
                                     </div>
                                     {% elif item.__class__.__name__ == "ToolUseContent" and item.name == 'Bash' %}
+                                    {% set bash_id = item.id %}
                                     <div class="bash-notification">
-                                        <div class="bash-notification-container">
-                                            <div class="bash-header">
+                                        <div class="bash-notification-container" id="container-{{ bash_id }}">
+                                            <div class="bash-header" onclick="toggleBash('{{ bash_id }}')">
                                                 <span class="bash-icon">💻</span>
                                                 {% if item.input.description %}
                                                     {{ item.input.description }}
                                                 {% else %}
                                                     Running command
                                                 {% endif %}
+                                                <span class="bash-toggle-icon" id="icon-{{ bash_id }}">▶</span>
                                             </div>
-                                            <div class="bash-command-box">
+                                            <div id="bash-{{ bash_id }}" class="bash-command-box">
                                                 {{ item.input.command }}
                                             </div>
                                         </div>
@@ -1429,6 +1477,23 @@
         if (allConversations.length > 0) {
             // Don't auto-select, let user choose
             document.getElementById('welcomeMessage').style.display = 'flex';
+        }
+        
+        function toggleBash(id) {
+            const command = document.getElementById('bash-' + id);
+            const icon = document.getElementById('icon-' + id);
+            const container = document.getElementById('container-' + id);
+            const isExpanded = command.style.display === 'block';
+            
+            if (isExpanded) {
+                command.style.display = 'none';
+                icon.classList.remove('expanded');
+                container.classList.remove('expanded');
+            } else {
+                command.style.display = 'block';
+                icon.classList.add('expanded');
+                container.classList.add('expanded');
+            }
         }
     </script>
 </body>
