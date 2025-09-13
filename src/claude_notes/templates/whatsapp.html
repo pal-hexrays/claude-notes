@@ -382,7 +382,75 @@
             margin: 15px 0;
             width: 100%;
         }
-        
+
+        /* Edit notification style (same as bash) */
+        .edit-notification {
+            text-align: center;
+            margin: 15px 0;
+            width: 100%;
+        }
+
+        .edit-notification-container {
+            display: inline-block;
+            background-color: rgba(255, 255, 255, 0.92);
+            border-radius: 7px;
+            box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+            padding: 5px 12px;
+            width: auto;
+            min-width: fit-content;
+            max-width: 85%;
+            transition: all 0.2s ease;
+            color: #667781;
+        }
+
+        .edit-notification-container.expanded {
+            width: 60%;
+            min-width: 300px;
+            max-width: 600px;
+        }
+
+        .edit-header {
+            color: #667781;
+            font-size: 12px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .edit-icon {
+            margin-right: 6px;
+            font-size: 13px;
+        }
+
+        .edit-details-box {
+            margin-top: 6px;
+            display: none;
+            text-align: left;
+        }
+
+        .edit-notification-container.expanded .edit-details-box {
+            display: block;
+        }
+
+        .edit-toggle-icon {
+            margin-left: auto;
+            font-size: 9px;
+            color: #999;
+            transition: transform 0.2s;
+            display: inline-block;
+            margin-left: 6px;
+        }
+
+        .edit-toggle-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .edit-header:hover .edit-toggle-icon {
+            color: #333;
+        }
+
         .bash-notification-container {
             display: inline-block;
             background-color: rgba(255, 255, 255, 0.92);
@@ -850,7 +918,25 @@
                                 </div>
                             {% endif %}
                         {% endif %}
-                        
+
+                        {# Check if message contains only notification-style tools #}
+                        {% set has_regular_content = false %}
+                        {% if text_content %}
+                            {% set has_regular_content = true %}
+                        {% endif %}
+                        {% if msg.message and msg.message.content %}
+                            {% if msg.message.content is iterable and msg.message.content is not string %}
+                                {% for item in msg.message.content %}
+                                    {% if item.__class__.__name__ == "ToolUseContent" %}
+                                        {% if item.name != 'Read' and item.name != 'Write' and item.name != 'Bash' and item.name != 'Edit' and item.name != 'MultiEdit' %}
+                                            {% set has_regular_content = true %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endif %}
+
+                        {% if has_regular_content %}
                         <div class="message-bubble {{ role }}" data-message="{{ loop.index }}">
                             <div class="bubble-content">
                                 <div class="message-text">
@@ -865,8 +951,8 @@
                                                 {% if item.__class__.__name__ == "ToolUseContent" %}
                                                 {% set tool_id = "tool-" ~ loop.index0 ~ "-" ~ msg.uuid[:8] %}
                                                 
-                                                {# Skip Read, Write, and Bash tools here - they're rendered as service messages #}
-                                                {% if item.name != 'Read' and item.name != 'Write' and item.name != 'Bash' %}
+                                                {# Skip Read, Write, Bash, and Edit tools here - they're rendered as service messages #}
+                                                {% if item.name != 'Read' and item.name != 'Write' and item.name != 'Bash' and item.name != 'Edit' and item.name != 'MultiEdit' %}
                                                 <div class="tool-use-bubble{% if item.name == 'TodoWrite' %} expanded{% endif %}" id="{{ tool_id }}">
                                                     <div class="tool-header" onclick="toggleTool('{{ tool_id }}')">
                                                         <div class="tool-header-left">
@@ -1145,9 +1231,10 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %} {# End has_regular_content #}
                         {% endif %}
-                        
-                        {# Render service messages (Read/Write/Bash tools) #}
+
+                        {# Render service messages (Read/Write/Bash/Edit tools) #}
                         {% if msg.message and msg.message.content %}
                             {% if msg.message.content is iterable and msg.message.content is not string %}
                                 {% for item in msg.message.content %}
@@ -1179,6 +1266,53 @@
                                             </div>
                                             <div id="bash-{{ bash_id }}" class="bash-command-box">
                                                 {{ item.input.command }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% elif item.__class__.__name__ == "ToolUseContent" and (item.name == 'Edit' or item.name == 'MultiEdit') %}
+                                    {% set edit_id = item.id %}
+                                    <div class="edit-notification">
+                                        <div class="edit-notification-container" id="edit-container-{{ edit_id }}">
+                                            <div class="edit-header" onclick="toggleEdit('{{ edit_id }}')">
+                                                <span class="edit-icon">✏️</span>
+                                                Edit {{ item.input.file_path | basename }}
+                                                <span class="edit-toggle-icon" id="edit-icon-{{ edit_id }}">▶</span>
+                                            </div>
+                                            <div id="edit-{{ edit_id }}" class="edit-details-box">
+                                                <div class="tool-param">
+                                                    <span class="tool-param-name">File:</span>
+                                                    <span class="tool-file-path">{{ item.input.file_path }}</span>
+                                                </div>
+                                                {% if item.name == 'Edit' %}
+                                                    {% if item.input.old_string %}
+                                                        <div class="code-change">
+                                                            <div class="code-old">- {{ item.input.old_string | truncate(100) }}</div>
+                                                            <div class="code-new">+ {{ item.input.new_string | truncate(100) }}</div>
+                                                        </div>
+                                                    {% endif %}
+                                                    {% if item.input.replace_all %}
+                                                        <div class="tool-param">
+                                                            <span class="tool-param-name">Replace All:</span> Yes
+                                                        </div>
+                                                    {% endif %}
+                                                {% elif item.name == 'MultiEdit' %}
+                                                    {% if item.input.edits %}
+                                                        <div class="tool-param">
+                                                            <span class="tool-param-name">Changes:</span> {{ item.input.edits | length }} edits
+                                                        </div>
+                                                        {% for edit in item.input.edits[:3] %}
+                                                            <div class="code-change">
+                                                                <div class="code-old">- {{ edit.old_string | truncate(60) }}</div>
+                                                                <div class="code-new">+ {{ edit.new_string | truncate(60) }}</div>
+                                                            </div>
+                                                        {% endfor %}
+                                                        {% if item.input.edits | length > 3 %}
+                                                            <div class="tool-param" style="font-style: italic;">
+                                                                ... and {{ item.input.edits | length - 3 }} more edits
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
@@ -1484,13 +1618,30 @@
             const icon = document.getElementById('icon-' + id);
             const container = document.getElementById('container-' + id);
             const isExpanded = command.style.display === 'block';
-            
+
             if (isExpanded) {
                 command.style.display = 'none';
                 icon.classList.remove('expanded');
                 container.classList.remove('expanded');
             } else {
                 command.style.display = 'block';
+                icon.classList.add('expanded');
+                container.classList.add('expanded');
+            }
+        }
+
+        function toggleEdit(id) {
+            const detailsBox = document.getElementById('edit-' + id);
+            const icon = document.getElementById('edit-icon-' + id);
+            const container = document.getElementById('edit-container-' + id);
+            const isExpanded = detailsBox.style.display === 'block';
+
+            if (isExpanded) {
+                detailsBox.style.display = 'none';
+                icon.classList.remove('expanded');
+                container.classList.remove('expanded');
+            } else {
+                detailsBox.style.display = 'block';
                 icon.classList.add('expanded');
                 container.classList.add('expanded');
             }
