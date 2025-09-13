@@ -114,62 +114,6 @@ class BaseFormatter(ABC):
                                     self._tool_results[msg.uuid] = tool_result.get("content", str(tool_result))
                             break
 
-    def _filter_for_summary(self, messages: list[TranscriptEntry]) -> list[TranscriptEntry]:
-        """Filter messages for summary mode - only user messages and Claude text responses."""
-        filtered_messages = []
-
-        for msg in messages:
-            # Skip tool results completely
-            if msg.type == "tool_result":
-                continue
-
-            # Skip user messages that are just tool results
-            if msg.type == "user":
-                message_data = msg.message
-                if isinstance(message_data, dict):
-                    content = message_data.get("content", "")
-                    if isinstance(content, str) and content.strip().startswith("Tool Result:"):
-                        continue
-                    # Also skip if content is a list with tool_result items
-                    elif isinstance(content, list):
-                        has_tool_result = any(
-                            isinstance(item, dict) and item.get("type") == "tool_result" for item in content
-                        )
-                        if has_tool_result:
-                            continue
-
-            # For assistant messages, filter out tool uses but keep text content
-            if msg.type == "assistant":
-                message_data = msg.message
-                if isinstance(message_data, dict):
-                    content = message_data.get("content", [])
-
-                    # Filter content to only include text blocks
-                    if isinstance(content, list):
-                        text_content = []
-                        for item in content:
-                            if isinstance(item, dict):
-                                if item.get("type") == "text":
-                                    text_content.append(item)
-                                # Skip tool_use items
-                            elif isinstance(item, str):
-                                # Handle string content directly
-                                text_content.append({"type": "text", "text": item})
-
-                        # Only include the message if it has text content
-                        if text_content:
-                            # For now, just include the original message
-                            # TODO: Create a filtered version with only text content
-                            filtered_messages.append(msg)
-                    elif isinstance(content, str) and content.strip():
-                        # String content - include as-is
-                        filtered_messages.append(msg)
-            else:
-                # Include other message types (user messages)
-                filtered_messages.append(msg)
-
-        return filtered_messages
-
     def _group_messages(self, messages: list[TranscriptEntry]) -> list[list[TranscriptEntry]]:
         """Group consecutive messages by the same role."""
         if not messages:

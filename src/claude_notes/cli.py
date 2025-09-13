@@ -251,7 +251,6 @@ def filter_tool_messages(messages: list, filter_config: FilterConfig) -> list:
 @click.argument("path", type=click.Path(exists=True, path_type=Path), default=".")
 @click.option("--raw", is_flag=True, help="Show raw JSON data instead of formatted view")
 @click.option("--no-pager", is_flag=True, help="Disable pager and show all content at once")
-@click.option("--summary", is_flag=True, help="Show only user messages and Claude replies, filtering out tool calls")
 @click.option(
     "--filter-tools", 
     type=str, 
@@ -332,7 +331,6 @@ def show(
     path: Path,
     raw: bool,
     no_pager: bool,
-    summary: bool,
     filter_tools: str | None,
     only_tools: str | None,
     filter_categories: str | None,
@@ -391,7 +389,6 @@ def show(
     path = cli_args.get("path", path)  # Path should always come from CLI
     raw = merged_config.get("raw", raw)
     no_pager = merged_config.get("no_pager", no_pager)
-    summary = merged_config.get("summary", summary)
     format = merged_config.get("format", format)
     output = merged_config.get("output", output)
     session_order = merged_config.get("session_order", session_order)
@@ -536,10 +533,6 @@ def show(
             # Order the messages based on user preference
             ordered_messages = order_messages(conv["messages"], message_order)
 
-            # Apply summary filtering if requested
-            if summary:
-                ordered_messages = formatter._filter_for_summary(ordered_messages)
-
             all_messages.extend(ordered_messages)
 
             # Add separator between conversations if multiple
@@ -610,10 +603,6 @@ def show(
             # Order the messages based on user preference
             ordered_messages = order_messages(conv["messages"], message_order)
 
-            # Apply summary filtering if requested
-            if summary:
-                ordered_messages = formatter._filter_for_summary(ordered_messages)
-
             all_conversations.append({"info": conv["info"], "messages": ordered_messages})
 
         # Generate HTML using template
@@ -640,10 +629,6 @@ def show(
                 # Order the messages based on user preference
                 ordered_messages = order_messages(conv["messages"], message_order)
 
-                # Apply summary filtering if requested
-                if summary:
-                    ordered_messages = formatter._filter_for_summary(ordered_messages)
-
                 formatter.display_conversation(ordered_messages, conv["info"])
         else:
             # Use pager for progressive display
@@ -655,10 +640,6 @@ def show(
             for _i, conv in enumerate(conversations):
                 # Order the messages based on user preference
                 ordered_messages = order_messages(conv["messages"], message_order)
-
-                # Apply summary filtering if requested
-                if summary:
-                    ordered_messages = formatter._filter_for_summary(ordered_messages)
 
                 pager.add_conversation(ordered_messages, conv["info"], formatter)
 

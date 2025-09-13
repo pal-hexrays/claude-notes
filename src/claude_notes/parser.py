@@ -126,15 +126,3 @@ class TranscriptParser:
         """Get all raw messages from the transcript (for backward compatibility)."""
         return self.messages
 
-    def get_summary(self) -> str | None:
-        """Try to extract a summary or title from the conversation."""
-        # Look for system messages or first user message
-        for msg in self.messages:
-            if msg.get("type") == "conversation_title":
-                return msg.get("content", "")
-            elif msg.get("role") == "user" and msg.get("content"):
-                # Return first line of first user message as summary
-                content = msg["content"]
-                if isinstance(content, str):
-                    return content.split("\n")[0][:100] + ("..." if len(content) > 100 else "")
-        return None
