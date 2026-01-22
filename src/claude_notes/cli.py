@@ -11,7 +11,6 @@ from rich.table import Table
 from claude_notes.config import ConfigManager
 from claude_notes.filter import FilterConfig
 from claude_notes.parser import TranscriptParser
-from claude_notes.title_generator import LLMTitleGenerator
 
 console = Console()
 
@@ -313,17 +312,6 @@ def filter_tool_messages(messages: list, filter_config: FilterConfig) -> list:
     is_flag=True,
     help="Replace emoji with text fallbacks for better GIF compatibility (animated format)",
 )
-@click.option(
-    "--generate-titles",
-    is_flag=True,
-    help="Generate AI-powered Seinfeld-style episode titles for conversations (requires API key)",
-)
-@click.option(
-    "--llm-provider",
-    type=click.Choice(["auto", "anthropic", "openai"]),
-    default="auto",
-    help="LLM provider for title generation (auto tries both)",
-)
 @click.option("--save-config", is_flag=True, help="Save current command line options to configuration file")
 @click.pass_context
 def show(
@@ -347,8 +335,6 @@ def show(
     rows: int,
     max_duration: float | None,
     emoji_fallbacks: bool,
-    generate_titles: bool,
-    llm_provider: str,
     save_config: bool,
 ):
     """Show all conversations for a Claude project.
@@ -401,8 +387,6 @@ def show(
     rows = merged_config.get("rows", rows)
     max_duration = merged_config.get("max_duration", max_duration)
     emoji_fallbacks = merged_config.get("emoji_fallbacks", emoji_fallbacks)
-    generate_titles = merged_config.get("generate_titles", generate_titles)
-    llm_provider = merged_config.get("llm_provider", llm_provider)
 
     # Set default message order based on format if not explicitly provided
     if message_order is None:
@@ -432,11 +416,6 @@ def show(
         return
 
     # No header output - just start with the conversation
-
-    # Initialize title generator if requested
-    title_generator = None
-    if generate_titles:
-        title_generator = LLMTitleGenerator(enable_cache=True, provider=llm_provider)
 
     # Load all conversations
     conversations = []
@@ -483,21 +462,9 @@ def show(
     for conv in conversations:
         conv["messages"] = filter_tool_messages(conv["messages"], filter_config)
 
-    # Generate unique titles if requested
-    if title_generator:
-        # Collect all message lists
-        all_messages = [conv["messages"] for conv in conversations]
-
-        # Generate unique titles for all conversations
-        titles_and_costs = title_generator.generate_unique_titles(all_messages)
-
-        # Assign the generated titles
-        for i, (conv, (title, _cost)) in enumerate(zip(conversations, titles_and_costs), 1):
-            conv["info"]["title"] = f"S{i:02d}: {title}"
-    else:
-        # Assign default titles
-        for i, conv in enumerate(conversations, 1):
-            conv["info"]["title"] = f"Conversation {i}"
+    # Assign default titles
+    for i, conv in enumerate(conversations, 1):
+        conv["info"]["title"] = f"Conversation {i}"
 
     if raw:
         # Display raw JSON data
