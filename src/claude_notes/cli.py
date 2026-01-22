@@ -41,8 +41,8 @@ def _decode_segments(encoded: str, separator: str) -> str:
 
 
 def _encode_segments(path: str) -> str:
-    """Encode path segments by replacing slashes with dashes."""
-    return path.replace("/", "-")
+    """Encode path segments by replacing slashes and underscores with dashes."""
+    return path.replace("/", "-").replace("_", "-")
 
 
 def decode_project_path(encoded_name: str) -> str:
