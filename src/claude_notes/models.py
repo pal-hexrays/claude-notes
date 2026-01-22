@@ -135,7 +135,7 @@ class TranscriptEntry(BaseModel):
     compactMetadata: Optional[CompactMetadata] = None
 
     # Tool result field for user messages
-    toolUseResult: Optional[Union[str, Dict[str, Any]]] = None
+    toolUseResult: Optional[Union[str, Dict[str, Any], List[Any]]] = None
 
     # Additional fields
     logicalParentUuid: Optional[str] = None
